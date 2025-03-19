@@ -2,26 +2,14 @@ import json
 
 from besser.agent.nlp.llm.llm import LLM
 from besser.agent.nlp.llm.llm_openai_api import LLMOpenAI
-from elasticsearch import Elasticsearch
 from pydantic import BaseModel
 from besser.agent.core.session import Session
 
+from ui.vars import *
+
 
 def build_query(date_from=None, date_to=None, filters=None):
-    """
-    Searches an Elasticsearch index for documents within a specific date range and processes them in batches using scroll.
-
-    :param es_client: Elasticsearch client instance
-    :param index_name: Name of the Elasticsearch index
-    :param date_from: Start date (YYYY-MM-DD format) or None
-    :param date_to: End date (YYYY-MM-DD format) or None
-    :param filters: List of filter conditions
-    :param scroll_time: Time to keep the scroll context alive (default 1 minute)
-    :param batch_size: Number of documents per batch (default 1000)
-    :return: None (processes batches of documents)
-    """
     query = {"query": {"bool": {"filter": []}}}
-
     # Add date range filter if parameters are provided
     if date_from or date_to:
         date_range = {}
@@ -30,32 +18,32 @@ def build_query(date_from=None, date_to=None, filters=None):
         if date_to:
             date_range["lte"] = date_to
 
-        query["query"]["bool"]["filter"].append({"range": {"DATE_CREATED": date_range}})
+        query["query"]["bool"]["filter"].append({"range": {DATE_CREATED: date_range}})
 
     # Add filters
     if filters:
         for f in filters:
-            field, operator, value = f["field"], f["operator"], f["value"]
+            field, operator, value = f[FIELD], f[OPERATOR], f[VALUE]
             # if operator == "equals":
-            #     query["query"]["bool"]["filter"].append({"term": {field: value}}) # TODO: This only for fields keyword fields
+            #     query["query"]["bool"]["filter"].append({"term": {field: value}}) # This only for fields keyword fields
             # elif operator == "different":
             #     query["query"]["bool"].setdefault("must_not", []).append({"term": {field: value}})
-            if operator == "equals":
-                query["query"]["bool"]["filter"].append({"match_phrase": {field: value}})  # TODO: This only for fields with analyzed text (SUBJECT, CONTENT)
-            elif operator == "different":
+            if operator == EQUALS:
+                query["query"]["bool"]["filter"].append({"match_phrase": {field: value}})  # This only for fields with analyzed text (SUBJECT, CONTENT)
+            elif operator == DIFFERENT:
                 query["query"]["bool"].setdefault("must_not", []).append({"match_phrase": {field: value}})
-            elif operator == "contains":
+            elif operator == CONTAINS:
                 query["query"]["bool"]["filter"].append({"wildcard": {field: f"*{value}*"}})
-            elif operator == "starts with":
+            elif operator == STARTS_WITH:
                 query["query"]["bool"]["filter"].append({"prefix": {field: value}})
-            elif operator == "regexp":
+            elif operator == REGEXP:
                 query["query"]["bool"]["filter"].append({"regexp": {field: value}})
-            elif operator == "fuzzy":
+            elif operator == FUZZY:
                 query["query"]["bool"]["filter"].append({"fuzzy": {field: {"value": value, "fuzziness": "AUTO"}}})
     return query
 
+
 def get_num_docs(es_client, index_name, query):
-    # Start the scroll
     # Perform the count query by using size=0 to avoid retrieving documents
     response = es_client.search(index=index_name, body=query, size=0, track_total_hits=True)
     total_hits = response["hits"]["total"]["value"]
@@ -72,11 +60,11 @@ def scroll_docs(session: Session, es_client, index_name, query, request, llm: LL
     ignored_docs = 0
     fields = set()
     prompt_filters = 'Filters:\n'
-    for i, instruction in enumerate(request['semantic_instructions']):
-        prompt_filters += f"{i+1}: {instruction['text']}"
-        if instruction['field']:
-            prompt_filters += f"(\"{instruction['field']}\" field)"
-            fields.add(instruction['field'])
+    for i, instruction in enumerate(request[SEMANTIC_INSTRUCTIONS]):
+        prompt_filters += f"{i+1}: {instruction[TEXT]}"
+        if instruction[FIELD]:
+            prompt_filters += f"(\"{instruction[FIELD]}\" field)"
+            fields.add(instruction[FIELD])
         prompt_filters += "\n"
     ids = []
     # Process the documents in batches
@@ -84,7 +72,6 @@ def scroll_docs(session: Session, es_client, index_name, query, request, llm: LL
         # Process each document in the current batch
         # print(f'Total scroll size: {len(response["hits"]["hits"])}')
         for doc in response["hits"]["hits"]:
-
             #print(doc["_source"])  # Example: print the document content
             if fields:
                 prompt_doc = {
@@ -92,35 +79,34 @@ def scroll_docs(session: Session, es_client, index_name, query, request, llm: LL
                 }
             else:
                 prompt_doc = {
-                    'SUBJECT': doc['_source']['SUBJECT'],
-                    'CONTENT': doc['_source']['CONTENT'],
-                    'FROM': doc['_source']['FROM'],
-                    'TO': doc['_source']['TO'],
+                    SUBJECT: doc['_source'][SUBJECT],
+                    CONTENT: doc['_source'][CONTENT],
+                    FROM: doc['_source'][FROM],
+                    TO: doc['_source'][TO],
                 }
             prompt = prompt_filters + f"Document:\n{prompt_doc}"
             llm_prediction = run_llm_openai(llm, prompt) if isinstance(llm, LLMOpenAI) else run_llm(llm, prompt)
             if llm_prediction:
                 updated_docs += 1
-                ids.append(doc['_id'])
-                if request['action'] == 'DOCUMENT_RELEVANCE':
+                ids.append(doc['_id'])  # TODO: To show list of updated docs
+                if request[ACTION] == DOCUMENT_RELEVANCE:
                     update_document_relevance_id(
                         es_client=es_client,
                         index_name=index_name,
                         doc_id=doc['_id'],
-                        relevance_value=request['target_value']
+                        relevance_value=request[TARGET_VALUE]
                     )
-                elif request['action'] == 'DOCUMENT_LABELS':
+                elif request[ACTION] == DOCUMENT_LABELS:
                     append_document_label_id(
                         es_client=es_client,
                         index_name=index_name,
                         doc_id=doc['_id'],
-                        new_label=request['target_value']
+                        new_label=request[TARGET_VALUE]
                     )
             else:
                 ignored_docs += 1
-            print({'updated_docs': updated_docs, 'ignored_docs': ignored_docs, 'total_docs': total_docs})
             session.reply(
-                json.dumps({'total_docs': total_docs, 'updated_docs': updated_docs, 'ignored_docs': ignored_docs}))
+                json.dumps({UPDATED_DOCS: updated_docs, IGNORED_DOCS: ignored_docs, TOTAL_DOCS: total_docs}))
         # Get the next batch using the scroll ID
         response = es_client.scroll(scroll_id=scroll_id, scroll=scroll_time)
 
@@ -140,12 +126,12 @@ def append_document_label_query(es_client, index_name, query, new_label):
     """
     update_body = {
         "script": {
-            "source": """
-                if (ctx._source.DOCUMENT_LABELS == null) {
-                    ctx._source.DOCUMENT_LABELS = [params.new_label];
-                } else if (!ctx._source.DOCUMENT_LABELS.contains(params.new_label)) {
-                    ctx._source.DOCUMENT_LABELS.add(params.new_label);
-                }
+            "source": f"""
+                if (ctx._source.{DOCUMENT_LABELS} == null) {{
+                    ctx._source.{DOCUMENT_LABELS} = [params.new_label];
+                }} else if (!ctx._source.{DOCUMENT_LABELS}.contains(params.new_label)) {{
+                    ctx._source.{DOCUMENT_LABELS}.add(params.new_label);
+                }}
             """,
             "params": {
                 "new_label": new_label
@@ -172,12 +158,12 @@ def append_document_label_id(es_client, index_name, doc_id, new_label):
     """
     update_body = {
         "script": {
-            "source": """
-                if (ctx._source.DOCUMENT_LABELS == null) {
-                    ctx._source.DOCUMENT_LABELS = [params.new_label];
-                } else if (!ctx._source.DOCUMENT_LABELS.contains(params.new_label)) {
-                    ctx._source.DOCUMENT_LABELS.add(params.new_label);
-                }
+            "source": f"""
+                if (ctx._source.{DOCUMENT_LABELS} == null) {{
+                    ctx._source.{DOCUMENT_LABELS} = [params.new_label];
+                }} else if (!ctx._source.{DOCUMENT_LABELS}.contains(params.new_label)) {{
+                    ctx._source.{DOCUMENT_LABELS}.add(params.new_label);
+                }}
             """,
             "params": {
                 "new_label": new_label
@@ -203,7 +189,7 @@ def update_document_relevance_id(es_client, index_name, doc_id, relevance_value)
     """
     update_body = {
         "doc": {
-            "DOCUMENT_RELEVANCE": relevance_value
+            DOCUMENT_RELEVANCE: relevance_value
         }
     }
 
@@ -217,7 +203,7 @@ def update_document_relevance_query(es_client, index_name, query, document_relev
     # Prepare the update query
     update_body = {
         "script": {
-            "source": "ctx._source.DOCUMENT_RELEVANCE = params.relevance_value",
+            "source": f"ctx._source.{DOCUMENT_RELEVANCE} = params.relevance_value",
             "params": {
                 "relevance_value": document_relevance
             }
@@ -236,7 +222,6 @@ def run_llm_openai(llm: LLMOpenAI, prompt: str) -> bool:
         result: bool
 
     instruction = "Your task is to filter documents from an elasticsearch index based on some natural language conditions. You will receive a list of filters, which may relate to a specific document field, and an elasticsearch document. Return True if the document satisfies all the filters, and False otherwise.\n"
-
     answer = llm.client.beta.chat.completions.parse(
         model=llm.name,
         messages=[

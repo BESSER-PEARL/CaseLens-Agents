@@ -6,7 +6,7 @@ import streamlit as st
 from besser.agent.core.message import Message, MessageType
 from besser.agent.platforms.payload import Payload, PayloadAction, PayloadEncoder
 
-from streamlit_ui.vars import SUBMIT_TEXT, BUTTONS, USER, WEBSOCKET
+from ui.vars import SUBMIT_TEXT, BUTTONS, USER, WEBSOCKET
 
 
 def message_input():

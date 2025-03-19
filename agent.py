@@ -6,18 +6,14 @@ import logging
 
 from besser.agent.core.agent import Agent
 from besser.agent.core.session import Session
-from besser.agent.core.state import State
 from besser.agent.exceptions.logger import logger
-from besser.agent.nlp.intent_classifier.intent_classifier_configuration import LLMIntentClassifierConfiguration
-from besser.agent.nlp.llm.llm_huggingface import LLMHuggingFace
-from besser.agent.nlp.llm.llm_huggingface_api import LLMHuggingFaceAPI
 from besser.agent.nlp.llm.llm_openai_api import LLMOpenAI
-from besser.agent.nlp.llm.llm_replicate_api import LLMReplicate
 from elasticsearch import Elasticsearch
 from pydantic import BaseModel
 
-from streamlit_ui.pages.elasticsearch_query import build_query, get_num_docs, update_document_relevance_query, \
+from query.elasticsearch_query import build_query, get_num_docs, update_document_relevance_query, \
     append_document_label_query, scroll_docs
+from ui.vars import *
 
 # Configure the logging module (optional)
 logger.setLevel(logging.INFO)
@@ -51,10 +47,6 @@ gpt = LLMOpenAI(
 # mixtral = LLMReplicate(agent=agent, name='mistralai/mixtral-8x7b-instruct-v0.1', parameters={}, num_previous_messages=10)
 
 
-es_host = "localhost"
-es_port = "19200"
-index_name = "castor-test-enron"
-
 # STATES
 
 initialization_state = agent.new_state('initialization_state', initial=True)
@@ -80,9 +72,13 @@ agent.set_global_fallback_body(global_fallback_body)
 
 def initialization_state_body(session: Session):
     # Establish connection to elasticsearch
+    es_host = agent.get_property(ELASTICSEARCH_HOST)
+    es_port = agent.get_property(ELASTICSEARCH_PORT)
+    es_index = agent.get_property(ELASTICSEARCH_INDEX)
     es_url = f'http://{es_host}:{es_port}'
     es = Elasticsearch([es_url])
-    session.set('es', es)
+    session.set(ELASTICSEARCH, es)
+    session.set(INDEX, es_index)
 
 
 initialization_state.set_body(initialization_state_body)
@@ -98,18 +94,19 @@ initial_state.when_no_intent_matched_go_to(build_query_state)
 
 
 def build_query_body(session: Session):
-    message = json.loads(session.message)
-    es: Elasticsearch = session.get('es')
+    request = json.loads(session.message)
+    es: Elasticsearch = session.get(ELASTICSEARCH)
+    index: str = session.get(INDEX)
     query = build_query(
-        date_from=message['date_from'],
-        date_to=message['date_to'],
-        filters=message['filters']
+        date_from=request[DATE_FROM],
+        date_to=request[DATE_TO],
+        filters=request[FILTERS]
     )
-    session.set('request', message)
-    session.set('query', query)
+    session.set(REQUEST, request)
+    session.set(QUERY, query)
     num_docs = get_num_docs(
         es_client=es,
-        index_name=index_name,
+        index_name=index,
         query=query
     )
     websocket_platform.reply(session, f'There are {num_docs} documents matching your filters. Do you want to proceed with LLM?')
@@ -124,33 +121,34 @@ build_query_state.when_no_intent_matched_go_to(build_query_state)  # New request
 
 
 def run_query_body(session: Session):
-    es: Elasticsearch = session.get('es')
-    query = session.get('query')
-    request = session.get('request')
-    if request['semantic_instructions']:
+    es: Elasticsearch = session.get(ELASTICSEARCH)
+    index: str = session.get(INDEX)
+    query = session.get(QUERY)
+    request = session.get(REQUEST)
+    if request[SEMANTIC_INSTRUCTIONS]:
         scroll_docs(
             session=session,
             es_client=es,
-            index_name=index_name,
+            index_name=index,
             query=query,
             request=request,
             llm=gpt,
             batch_size=1
         )
     else:
-        if request['action'] == 'DOCUMENT_RELEVANCE':
+        if request[ACTION] == DOCUMENT_RELEVANCE:
             update_document_relevance_query(
                 es_client=es,
-                index_name=index_name,
+                index_name=index,
                 query=query,
-                document_relevance=request['target_value']
+                document_relevance=request[TARGET_VALUE]
             )
-        elif request['action'] == 'DOCUMENT_LABELS':
+        elif request[ACTION] == DOCUMENT_LABELS:
             append_document_label_query(
                 es_client=es,
-                index_name=index_name,
+                index_name=index,
                 query=query,
-                new_label=request['target_value']
+                new_label=request[TARGET_VALUE]
             )
 
 

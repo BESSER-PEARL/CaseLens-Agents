@@ -1,6 +1,8 @@
 from abc import ABC, abstractmethod
 from typing import Union
 
+from ui.vars import *
+
 
 class Instruction(ABC):
 
@@ -27,8 +29,8 @@ class SemanticInstruction(Instruction):
 
     def to_json(self):
         return {
-            'field': self.field,
-            'text': self.text
+            FIELD: self.field,
+            TEXT: self.text
         }
 
 
@@ -45,9 +47,9 @@ class FilterInstruction(Instruction):
 
     def to_json(self):
         return {
-            'field': self.field,
-            'operator': self.operator,
-            'value': self.value
+            FIELD: self.field,
+            OPERATOR: self.operator,
+            VALUE: self.value
         }
 
 
@@ -70,10 +72,10 @@ class Request:
 
     def to_json(self):
         return {
-            'action': self.action,
-            'target_value': self.target_value,
-            'date_from': self.date_from,
-            'date_to': self.date_to,
-            'filters': [filter.to_json() for filter in self.filters],
-            'semantic_instructions': [instruction.to_json() for instruction in self.semantic_instructions]
+            ACTION: self.action,
+            TARGET_VALUE: self.target_value,
+            DATE_FROM: self.date_from,
+            DATE_TO: self.date_to,
+            FILTERS: [filter.to_json() for filter in self.filters],
+            SEMANTIC_INSTRUCTIONS: [instruction.to_json() for instruction in self.semantic_instructions]
         }

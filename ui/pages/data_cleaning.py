@@ -1,5 +1,4 @@
 import json
-import sys
 from datetime import datetime
 
 import streamlit as st
@@ -8,64 +7,51 @@ from besser.agent.platforms.payload import PayloadAction, Payload, PayloadEncode
 from dateutil.relativedelta import relativedelta
 from elasticsearch import Elasticsearch
 
-from streamlit_ui.chat import load_chat
-from streamlit_ui.initialization import initialize
-from streamlit_ui.message_input import message_input
-from streamlit_ui.pages.request import Request, Instruction, SemanticInstruction, FilterInstruction
-from streamlit_ui.vars import ELASTICSEARCH, INSTRUCTIONS, INSTRUCTIONS_CHECKBOXES, WEBSOCKET, USER, QUEUE, HISTORY, PROGRESS
-
-es_host = "localhost"
-es_port = "19200"
-index_name = "castor-test-enron"
-
-action_dict = {
-    'DOCUMENT_RELEVANCE': 'Document Relevance',
-    'DOCUMENT_LABELS': 'Document Labels'
-}
-
-document_relevance_dict = {
-    2: '🔫 Smoking gun',
-    1: '👍 Relevant',
-    -1: '👎 Not relevant'
-}
+from ui.agent.chat import load_chat
+from query.request import Request, SemanticInstruction, FilterInstruction
+from ui.vars import *
 
 
-def initialize_elasticsearch():
+def initialize_elasticsearch(es_host, es_port):
     if ELASTICSEARCH not in st.session_state:
         es_url = f'http://{es_host}:{es_port}'
         es = Elasticsearch([es_url])
         st.session_state[ELASTICSEARCH] = es
 
-    if INSTRUCTIONS not in st.session_state:
-        st.session_state[INSTRUCTIONS] = []
-    if INSTRUCTIONS_CHECKBOXES not in st.session_state:
-        st.session_state[INSTRUCTIONS_CHECKBOXES] = []
 
 def semantic_instructions():
     def add_semantic_instruction():
-        if st.session_state['instruction_input'] in [instruction.text for instruction in st.session_state[INSTRUCTIONS] if isinstance(instruction, SemanticInstruction)]:
+        if st.session_state[INSTRUCTION_INPUT] in [instruction.text for instruction in st.session_state[INSTRUCTIONS] if isinstance(instruction, SemanticInstruction)]:
             st.error('Instruction already exists')
             return
-        semantic_instruction = SemanticInstruction(field=st.session_state['instruction_field'], text=st.session_state['instruction_input'])
+        semantic_instruction = SemanticInstruction(field=st.session_state[INSTRUCTION_FIELD], text=st.session_state['instruction_input'])
         if semantic_instruction.text:
             st.session_state[INSTRUCTIONS].append(semantic_instruction)
             st.session_state[INSTRUCTIONS_CHECKBOXES].append(False)
-        st.session_state['instruction_input'] = ""
+        st.session_state[INSTRUCTION_INPUT] = ""
 
     st.subheader('Semantic Instructions')
     cols = st.columns([0.2, 0.8])
-    cols[0].selectbox(key='instruction_field', label='Select field', options=['SUBJECT', 'CONTENT', 'FROM', 'TO'], index=None)
-    cols[1].text_input('Add semantic instruction:', key='instruction_input', on_change=add_semantic_instruction)
+    cols[0].selectbox(key=INSTRUCTION_FIELD, label='Select field', options=[SUBJECT, CONTENT, FROM, TO], index=None)
+    cols[1].text_input('Add semantic instruction:', key=INSTRUCTION_INPUT, on_change=add_semantic_instruction)
 
 
 def filters():
     st.subheader('Filters')
     filter_cols = st.columns(3)
-    filter_field = filter_cols[0].selectbox(key='filter_field', label='Select field',
-                                            options=['SUBJECT', 'CONTENT', 'FROM', 'TO'], index=None)
-    filter_operator = filter_cols[1].selectbox(key='filter_operator', label='Select operator', options=['equals', 'different', 'contains', 'starts with', 'regexp', 'fuzzy'],
-                                               index=None)
-    filter_value = filter_cols[2].text_input(key='filter_value', label='Enter value')
+    filter_field = filter_cols[0].selectbox(
+        key=FILTER_FIELD,
+        label='Select field',
+        options=[SUBJECT, CONTENT, FROM, TO],
+        index=None
+    )
+    filter_operator = filter_cols[1].selectbox(
+        key=FILTER_OPERATOR,
+        label='Select operator',
+        options=[EQUALS, DIFFERENT, CONTAINS, STARTS_WITH, REGEXP, FUZZY],
+        index=None
+    )
+    filter_value = filter_cols[2].text_input(key=FILTER_VALUE, label='Enter value')
     if st.button('Add filter', disabled=not all([filter_field, filter_operator, filter_value])):
         filter_instruction = FilterInstruction(field=filter_field, operator=filter_operator, value=filter_value)
         if (filter_instruction.field, filter_instruction.operator, filter_instruction.value) in [
@@ -87,30 +73,30 @@ def instruction_checkboxes():
         if instructions_checkboxes:
             if st.button('Remove selection', disabled=not any(instructions_checkboxes), type='primary'):
                 instructions = [i for i, b in zip(instructions, instructions_checkboxes) if not b]
-                instructions_checkboxes = [b for b in instructions_checkboxes if
-                                           not b]  # Only needed if you still need the filtered booleans list
+                instructions_checkboxes = [b for b in instructions_checkboxes if not b]  # Only needed if you still need the filtered booleans list
                 st.session_state[INSTRUCTIONS] = instructions
                 st.session_state[INSTRUCTIONS_CHECKBOXES] = instructions_checkboxes
                 st.rerun()
+
 
 def create_request():
     request: Request = Request()
     with st.container(border=True):
         # Action and target value
-        request.action = st.pills('Select action', ['DOCUMENT_RELEVANCE', 'DOCUMENT_LABELS'], format_func=(lambda x: action_dict[x]))
-        if request.action == 'DOCUMENT_RELEVANCE':
-            request.target_value = st.pills('Select value', options=[-1, 1, 2], format_func=(lambda x: document_relevance_dict[x]))
-        elif request.action == 'DOCUMENT_LABELS':
+        request.action = st.pills('Select action', [DOCUMENT_RELEVANCE, DOCUMENT_LABELS], format_func=(lambda x: action_dict[x]))
+        if request.action == DOCUMENT_RELEVANCE:
+            request.target_value = st.pills('Select value', options=document_relevance_dict.keys(), format_func=(lambda x: document_relevance_dict[x]))
+        elif request.action == DOCUMENT_LABELS:
             request.target_value = st.text_input('Enter label')
     with st.container(border=True):
         # Dates
         date_cols = st.columns(2)
         date_from = date_cols[0].date_input('Select Date Created (From)', value=None, min_value=datetime.today() - relativedelta(years=200), max_value=datetime.today() + relativedelta(years=200))
         if date_from:
-            request.date_from = date_from.strftime('%Y-%m-%d')
+            request.date_from = date_from.strftime(DATE_FORMAT)
         date_to = date_cols[1].date_input('Select Date Created (To)', value=None, min_value=datetime.today() - relativedelta(years=200), max_value=datetime.today() + relativedelta(years=200))
         if date_to:
-            request.date_to = date_to.strftime('%Y-%m-%d')
+            request.date_to = date_to.strftime(DATE_FORMAT)
 
         # Instructions
         filters()
@@ -161,10 +147,8 @@ def submit_request(request):
 
 
 def data_cleaning():
-    initialize_elasticsearch()
+    # initialize_elasticsearch()
     # es: Elasticsearch = st.session_state[ELASTICSEARCH]
-    # mapping = es.indices.get_mapping(index=index_name).body
-    # st.write(mapping)
     request = create_request()
     submit_request(request)
 

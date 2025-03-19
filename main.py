@@ -7,13 +7,12 @@ from streamlit.web import cli as stcli
 
 
 from agent import agent
-from streamlit_ui.chat import load_chat
-from streamlit_ui.initialization import initialize
-from streamlit_ui.message_input import message_input
-from streamlit_ui.pages.data_cleaning import data_cleaning
-from streamlit_ui.sidebar import sidebar, sidebar_menu
+from ui.initialization import initialize
+from ui.pages.data_cleaning import data_cleaning
+from ui.sidebar import sidebar_menu
 
 st.set_page_config(layout="wide")
+
 
 @st.cache_resource
 def run_agent():

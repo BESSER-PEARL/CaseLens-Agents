@@ -6,10 +6,9 @@ import streamlit as st
 import websocket
 from streamlit.runtime.scriptrunner_utils.script_run_context import add_script_run_ctx
 
-from streamlit_ui.session_management import session_monitoring
-from streamlit_ui.vars import SESSION_MONITORING_INTERVAL, SUBMIT_TEXT, HISTORY, QUEUE, \
-    WEBSOCKET, SESSION_MONITORING, SUBMIT_AUDIO, SUBMIT_FILE
-from streamlit_ui.websocket_callbacks import on_open, on_error, on_message, on_close, on_ping, on_pong
+from ui.session_management import session_monitoring
+from ui.vars import *
+from ui.agent.websocket_callbacks import on_open, on_error, on_message, on_close, on_ping, on_pong
 
 
 def initialize():
@@ -46,4 +45,9 @@ def initialize():
         add_script_run_ctx(session_monitoring_thread)
         session_monitoring_thread.start()
         st.session_state[SESSION_MONITORING] = session_monitoring_thread
+
+    if INSTRUCTIONS not in st.session_state:
+        st.session_state[INSTRUCTIONS] = []
+    if INSTRUCTIONS_CHECKBOXES not in st.session_state:
+        st.session_state[INSTRUCTIONS_CHECKBOXES] = []
 

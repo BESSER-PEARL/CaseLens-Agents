@@ -11,8 +11,8 @@ import pandas as pd
 from besser.agent.core.message import MessageType, Message
 from besser.agent.exceptions.logger import logger
 from besser.agent.platforms.payload import PayloadAction, Payload
-from streamlit_ui.session_management import get_streamlit_session
-from streamlit_ui.vars import QUEUE, PROGRESS
+from ui.session_management import get_streamlit_session
+from ui.vars import *
 
 try:
     import cv2
@@ -25,6 +25,7 @@ except ImportError:
     logger.warning("plotly dependencies in websocket_callbacks.py could not be imported. You can install them from "
                    "the requirements/requirements-extras.txt file")
 
+
 def on_message(ws, payload_str):
     # https://github.com/streamlit/streamlit/issues/2838
     streamlit_session = get_streamlit_session()
@@ -33,7 +34,12 @@ def on_message(ws, payload_str):
     if payload.action == PayloadAction.AGENT_REPLY_STR.value:
         try:
             content = json.loads(payload.message)
-            if 'updated_docs' in content and 'ignored_docs' in content and 'total_docs' in content:
+            # Get data for progress bar
+            if UPDATED_DOCS in content and IGNORED_DOCS in content and TOTAL_DOCS in content:
+                if PROGRESS not in streamlit_session._session_state:
+                    content[INITIAL_TIME] = datetime.now()
+                else:
+                    content[INITIAL_TIME] = streamlit_session._session_state[PROGRESS][INITIAL_TIME]
                 streamlit_session._session_state[PROGRESS] = content
                 streamlit_session._handle_rerun_script_request()
         except Exception:
@@ -79,7 +85,6 @@ def on_message(ws, payload_str):
         message = Message(t=t, content=content, is_user=False, timestamp=datetime.now())
         streamlit_session._session_state[QUEUE].put(message)
 
-    print('rerunning!!!!!!')
     streamlit_session._handle_rerun_script_request()
 
 

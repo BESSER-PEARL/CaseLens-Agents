@@ -4,7 +4,7 @@ from streamlit.runtime import Runtime
 from streamlit.runtime.app_session import AppSession
 from streamlit.runtime.scriptrunner_utils.script_run_context import get_script_run_ctx
 
-from streamlit_ui.vars import WEBSOCKET
+from ui.vars import WEBSOCKET
 
 
 def get_streamlit_session() -> AppSession or None:

@@ -11,6 +11,7 @@ SUBMIT_TEXT = 'submit_text'
 SUBMIT_AUDIO = 'submit_audio'
 USER = 'user'
 WEBSOCKET = 'websocket'
+SCREEN_DATA = 'screen_data'
 
 # Time interval to check if a streamlit session is still active, in seconds
 SESSION_MONITORING_INTERVAL = 1
@@ -21,6 +22,7 @@ TYPING_TIME = 0.05
 ELASTICSEARCH = 'elasticsearch'
 INSTRUCTIONS = 'instructions'
 INSTRUCTIONS_CHECKBOXES = 'instructions_checkboxes'
+FILTERS_CHECKBOXES = 'filters_checkboxes'
 PROGRESS = 'progress'
 INITIAL_TIME = 'initial_time'
 
@@ -44,7 +46,6 @@ TARGET_VALUE = 'target_value'
 DATE_FROM = 'date_from'
 DATE_TO = 'date_to'
 FILTERS = 'filters'
-SEMANTIC_INSTRUCTIONS = 'semantic_instructions'
 FIELD = 'field'
 OPERATOR = 'operator'
 VALUE = 'value'
@@ -84,3 +85,10 @@ DATE_FORMAT = '%Y-%m-%d'
 ELASTICSEARCH_HOST = Property('elasticsearch', 'elasticsearch.host', str, None)
 ELASTICSEARCH_PORT = Property('elasticsearch', 'elasticsearch.port', int, None)
 ELASTICSEARCH_INDEX = Property('elasticsearch', 'elasticsearch.index', str, None)
+
+
+# Pages
+
+DATA_LABELING = 'Data Labeling'
+DASHBOARD = 'Dashboard'
+SETTINGS = 'Settings'

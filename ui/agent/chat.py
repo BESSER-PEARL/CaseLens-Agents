@@ -99,8 +99,6 @@ def load_chat():
         write_message(message, key_count, stream=True)
         key_count += 1
 
-    load_progress_bar()
-
 
 def load_progress_bar():
     if PROGRESS in st.session_state:
@@ -123,10 +121,12 @@ def load_progress_bar():
         eta_minutes = (eta_total_seconds % 3600) // 60
         eta_seconds = eta_total_seconds % 60
 
-        with st.chat_message(ASSISTANT):
-            st.markdown(f'**{int(((updated + ignored) / total) * 100)}% completed**')
-            st.progress(updated/total, text=f"{updated}/{total} documents updated")
-            st.progress(ignored/total, text=f"{ignored}/{total} documents ignored")
-            st.text(f"{hours:02}:{minutes:02}:{seconds:02}")
-            st.text(f'ETA: {eta_hours:02}:{eta_minutes:02}:{eta_seconds:02}')
+        st.markdown(f'**{int(((updated + ignored) / total) * 100)}% completed**')
+        st.progress(updated/total, text=f"{updated}/{total} documents updated")
+        st.progress(ignored/total, text=f"{ignored}/{total} documents ignored")
+
+        time_message = f"{hours:02}:{minutes:02}:{seconds:02}"
+        if eta_total_seconds > 0:
+            time_message += f' | ETA: {eta_hours:02}:{eta_minutes:02}:{eta_seconds:02}'
+        st.text(time_message)
 

@@ -1,23 +1,11 @@
-from abc import ABC, abstractmethod
 from typing import Union
 
 from ui.vars import *
 
 
-class Instruction(ABC):
-
-    def __init__(self):
-        pass
-
-    @abstractmethod
-    def to_json(self):
-        pass
-
-
-class SemanticInstruction(Instruction):
+class Instruction:
 
     def __init__(self, field: str, text: str):
-        super().__init__()
         self.field: str = field
         self.text: str = text
 
@@ -34,10 +22,9 @@ class SemanticInstruction(Instruction):
         }
 
 
-class FilterInstruction(Instruction):
+class Filter:
 
     def __init__(self, field: str, operator: str, value: str):
-        super().__init__()
         self.field: str = field
         self.operator: str = operator
         self.value: str = value
@@ -55,20 +42,25 @@ class FilterInstruction(Instruction):
 
 class Request:
 
-    def __init__(self, action: str = None, target_value: Union[str, int] = None, date_from: str = None, date_to: str = None, instructions: list[Instruction] = None):
+    def __init__(
+            self,
+            action: str = None,
+            target_value: Union[str, int] = None,
+            date_from: str = None,
+            date_to: str = None,
+            filters=None,
+            instructions=None
+    ):
         if instructions is None:
-            self.filters = []
-            self.semantic_instructions = []
-        else:
-            self.set_instructions(instructions)
+            instructions = []
+        if filters is None:
+            filters = []
         self.action: str = action
         self.target_value: Union[str, int] = target_value
         self.date_from: str = date_from
         self.date_to: str = date_to
-
-    def set_instructions(self, instructions: list[Instruction]):
-        self.filters: list[FilterInstruction] = [instruction for instruction in instructions if isinstance(instruction, FilterInstruction)]
-        self.semantic_instructions: list[SemanticInstruction] = [instruction for instruction in instructions if isinstance(instruction, SemanticInstruction)]
+        self.filters: list[Filter] = filters
+        self.instructions: list[Instruction] = instructions
 
     def to_json(self):
         return {
@@ -77,5 +69,5 @@ class Request:
             DATE_FROM: self.date_from,
             DATE_TO: self.date_to,
             FILTERS: [filter.to_json() for filter in self.filters],
-            SEMANTIC_INSTRUCTIONS: [instruction.to_json() for instruction in self.semantic_instructions]
+            INSTRUCTIONS: [instruction.to_json() for instruction in self.instructions]
         }

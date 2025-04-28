@@ -15,7 +15,7 @@ def message_input():
         # It was fixed for rerun but with _handle_rerun_script_request it doesn't work
         st.session_state[SUBMIT_TEXT] = True
 
-    user_input = st.chat_input("What is up?", on_submit=submit_text)
+    user_input = st.chat_input("Chat here", on_submit=submit_text)
     if st.session_state[SUBMIT_TEXT]:
         st.session_state[SUBMIT_TEXT] = False
         if BUTTONS in st.session_state:

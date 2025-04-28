@@ -7,6 +7,7 @@ import logging
 from besser.agent.core.agent import Agent
 from besser.agent.core.session import Session
 from besser.agent.exceptions.logger import logger
+from besser.agent.library.transition.events.base_events import ReceiveJSONEvent
 from besser.agent.nlp.llm.llm_openai_api import LLMOpenAI
 from elasticsearch import Elasticsearch
 from pydantic import BaseModel
@@ -90,11 +91,11 @@ def initial_state_body(session: Session):
 
 
 initial_state.set_body(initial_state_body)
-initial_state.when_no_intent_matched_go_to(build_query_state)
+initial_state.when_event(ReceiveJSONEvent()).go_to(build_query_state)
 
 
 def build_query_body(session: Session):
-    request = json.loads(session.message)
+    request = json.loads(session.event.message)
     es: Elasticsearch = session.get(ELASTICSEARCH)
     index: str = session.get(INDEX)
     query = build_query(
@@ -109,15 +110,15 @@ def build_query_body(session: Session):
         index_name=index,
         query=query
     )
-    websocket_platform.reply(session, f'There are {num_docs} documents matching your filters. Do you want to proceed with LLM?')
+    websocket_platform.reply(session, f'There are {num_docs} documents matching your filters. Do you want to proceed with the analysis?')
     # TODO: CHECK HOW MANY OF THEM HAVE ALREADY THE TARGET VALUE?
     websocket_platform.reply_options(session, ['Yes', 'No'])
 
 
 build_query_state.set_body(build_query_body)
-build_query_state.when_intent_matched_go_to(yes_intent, run_query_state)
-build_query_state.when_intent_matched_go_to(no_intent, initial_state)
-build_query_state.when_no_intent_matched_go_to(build_query_state)  # New request
+build_query_state.when_intent_matched(yes_intent).go_to(run_query_state)
+build_query_state.when_intent_matched(no_intent).go_to(initial_state)
+build_query_state.when_event(ReceiveJSONEvent()).go_to(build_query_state)
 
 
 def run_query_body(session: Session):
@@ -125,7 +126,7 @@ def run_query_body(session: Session):
     index: str = session.get(INDEX)
     query = session.get(QUERY)
     request = session.get(REQUEST)
-    if request[SEMANTIC_INSTRUCTIONS]:
+    if request[INSTRUCTIONS]:
         scroll_docs(
             session=session,
             es_client=es,

@@ -12,6 +12,9 @@ from ui.agent.websocket_callbacks import on_open, on_error, on_message, on_close
 
 
 def initialize():
+    if SUBMIT_TEXT not in st.session_state:
+        st.session_state[SUBMIT_TEXT] = False
+
     if HISTORY not in st.session_state:
         st.session_state[HISTORY] = []
 
@@ -46,8 +49,16 @@ def initialize():
         session_monitoring_thread.start()
         st.session_state[SESSION_MONITORING] = session_monitoring_thread
 
+    if FILTERS not in st.session_state:
+        st.session_state[FILTERS] = []
+
+    if FILTERS_CHECKBOXES not in st.session_state:
+        st.session_state[FILTERS_CHECKBOXES] = []
+
     if INSTRUCTIONS not in st.session_state:
         st.session_state[INSTRUCTIONS] = []
+
     if INSTRUCTIONS_CHECKBOXES not in st.session_state:
         st.session_state[INSTRUCTIONS_CHECKBOXES] = []
+
 

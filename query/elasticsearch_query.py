@@ -60,7 +60,7 @@ def scroll_docs(session: Session, es_client, index_name, query, request, llm: LL
     ignored_docs = 0
     fields = set()
     prompt_filters = 'Filters:\n'
-    for i, instruction in enumerate(request[SEMANTIC_INSTRUCTIONS]):
+    for i, instruction in enumerate(request[INSTRUCTIONS]):
         prompt_filters += f"{i+1}: {instruction[TEXT]}"
         if instruction[FIELD]:
             prompt_filters += f"(\"{instruction[FIELD]}\" field)"
@@ -105,8 +105,7 @@ def scroll_docs(session: Session, es_client, index_name, query, request, llm: LL
                     )
             else:
                 ignored_docs += 1
-            session.reply(
-                json.dumps({UPDATED_DOCS: updated_docs, IGNORED_DOCS: ignored_docs, TOTAL_DOCS: total_docs}))
+            session.reply(json.dumps({UPDATED_DOCS: updated_docs, IGNORED_DOCS: ignored_docs, TOTAL_DOCS: total_docs}))
         # Get the next batch using the scroll ID
         response = es_client.scroll(scroll_id=scroll_id, scroll=scroll_time)
 

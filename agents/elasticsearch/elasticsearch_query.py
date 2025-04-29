@@ -5,7 +5,7 @@ from besser.agent.nlp.llm.llm_openai_api import LLMOpenAI
 from pydantic import BaseModel
 from besser.agent.core.session import Session
 
-from ui.vars import *
+from app.vars import *
 
 
 def build_query(date_from=None, date_to=None, filters=None):
@@ -113,12 +113,13 @@ def scroll_docs(session: Session, es_client, index_name, query, request, llm: LL
                     ignored_docs += 1
             else:
                 updated_docs += 1
-            session.reply(json.dumps({UPDATED_DOCS: updated_docs, IGNORED_DOCS: ignored_docs, TOTAL_DOCS: total_docs}))
+            session.reply(json.dumps({REQUEST_ID: session.get(REQUEST)[REQUEST_ID], UPDATED_DOCS: updated_docs, IGNORED_DOCS: ignored_docs, TOTAL_DOCS: total_docs, FINISHED: False}))
         # Get the next batch using the scroll ID
         response = es_client.scroll(scroll_id=scroll_id, scroll=scroll_time)
 
     # Clear the scroll context when done
     es_client.clear_scroll(scroll_id=scroll_id)
+    session.reply(json.dumps({REQUEST_ID: session.get(REQUEST)[REQUEST_ID], UPDATED_DOCS: updated_docs, IGNORED_DOCS: ignored_docs, TOTAL_DOCS: total_docs, FINISHED: True}))
 
 
 def append_document_label_query(es_client, index_name, query, new_label):

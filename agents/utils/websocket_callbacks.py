@@ -11,8 +11,9 @@ import pandas as pd
 from besser.agent.core.message import MessageType, Message
 from besser.agent.exceptions.logger import logger
 from besser.agent.platforms.payload import PayloadAction, Payload
-from ui.session_management import get_streamlit_session
-from ui.vars import *
+
+from app.session_management import get_streamlit_session
+from app.vars import *
 
 try:
     import cv2

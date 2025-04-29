@@ -6,25 +6,25 @@ from streamlit.runtime import Runtime
 from streamlit.web import cli as stcli
 
 
-from agent import agent
-from ui.initialization import initialize
-from ui.pages.data_labeling import data_labeling
-from ui.sidebar import sidebar_menu
-from ui.vars import DATA_LABELING
+from agents.data_labeling_agent.data_labeling_agent import data_labeling_agent
+from agents.data_labeling_agent.data_labeling_ui import data_labeling
+from app.initialization import initialize
+from app.sidebar import sidebar_menu
+from app.vars import DATA_LABELING
 
 st.set_page_config(layout="wide")
 
 
 @st.cache_resource
-def run_agent():
-    # TODO: Agent in another docker container
-    agent.run(sleep=False)
+def run_agents():
+    # TODO: Agents in another docker container
+    data_labeling_agent.run(sleep=False)
     return True
 
 
 if __name__ == "__main__":
     if st.runtime.exists():
-        run_agent()
+        run_agents()
         initialize()
         with st.sidebar:
             page = sidebar_menu()

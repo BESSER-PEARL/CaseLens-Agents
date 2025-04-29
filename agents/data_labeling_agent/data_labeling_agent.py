@@ -3,33 +3,34 @@
 # sys.path.append("/Path/to/directory/agentic-framework") # Replace with your directory path
 import json
 import logging
+import operator
 
 from besser.agent.core.agent import Agent
 from besser.agent.core.session import Session
 from besser.agent.exceptions.logger import logger
-from besser.agent.library.transition.events.base_events import ReceiveJSONEvent
+from besser.agent.library.transition.events.base_events import ReceiveJSONEvent, ReceiveTextEvent
 from besser.agent.nlp.intent_classifier.intent_classifier_configuration import LLMIntentClassifierConfiguration
 from besser.agent.nlp.llm.llm_openai_api import LLMOpenAI
 from elasticsearch import Elasticsearch
 
-from query.elasticsearch_query import build_query, get_num_docs, update_document_relevance_query, \
+from agents.elasticsearch.elasticsearch_query import build_query, get_num_docs, update_document_relevance_query, \
     append_document_label_query, scroll_docs
-from ui.vars import *
+from app.vars import *
 
 # Configure the logging module (optional)
 logger.setLevel(logging.INFO)
 
 # Create the agent
-agent = Agent('llm_agent')
+data_labeling_agent = Agent('data_labeling_agent')
 # Load agent properties stored in a dedicated file
-agent.load_properties('config.ini')
+data_labeling_agent.load_properties('agents/config.ini')
 # Define the platform your agent will use
-websocket_platform = agent.use_websocket_platform(use_ui=False)
+websocket_platform = data_labeling_agent.use_websocket_platform(use_ui=False)
 
 
 # Create the LLM
 llm = LLMOpenAI(
-    agent=agent,
+    agent=data_labeling_agent,
     name='gpt-4o-mini',
     parameters={
         # 'max_completion_tokens': 1,
@@ -54,16 +55,17 @@ llm_ic_config = LLMIntentClassifierConfiguration(
 
 # Intents
 
-yes_intent = agent.new_intent('yes_intent', ['yes'])
-no_intent = agent.new_intent('no_intent', ['no'])
+yes_to_all_intent = data_labeling_agent.new_intent('yes_to_all_intent', ['yes to all'])
+yes_intent = data_labeling_agent.new_intent('yes_intent', ['yes'])
+no_intent = data_labeling_agent.new_intent('no_intent', ['no'])
 
 # STATES
 
-initialization_state = agent.new_state('initialization_state', initial=True)
-initial_state = agent.new_state('initial_state', ic_config=llm_ic_config)
-build_query_state = agent.new_state('build_query_state')
-run_query_state = agent.new_state('run_query_state')
-fallback_state = agent.new_state('fallback_state')
+initialization_state = data_labeling_agent.new_state('initialization_state', initial=True)
+initial_state = data_labeling_agent.new_state('initial_state', ic_config=llm_ic_config)
+build_query_state = data_labeling_agent.new_state('build_query_state')
+run_query_state = data_labeling_agent.new_state('run_query_state')
+fallback_state = data_labeling_agent.new_state('fallback_state')
 
 
 # STATES BODIES' DEFINITION + TRANSITIONS
@@ -71,13 +73,14 @@ fallback_state = agent.new_state('fallback_state')
 
 def initialization_state_body(session: Session):
     # Establish connection to elasticsearch
-    es_host = agent.get_property(ELASTICSEARCH_HOST)
-    es_port = agent.get_property(ELASTICSEARCH_PORT)
-    es_index = agent.get_property(ELASTICSEARCH_INDEX)
+    es_host = data_labeling_agent.get_property(ELASTICSEARCH_HOST)
+    es_port = data_labeling_agent.get_property(ELASTICSEARCH_PORT)
+    es_index = data_labeling_agent.get_property(ELASTICSEARCH_INDEX)
     es_url = f'http://{es_host}:{es_port}'
     es = Elasticsearch([es_url])
     session.set(ELASTICSEARCH, es)
     session.set(INDEX, es_index)
+    session.set(YES_TO_ALL, False)
     session.reply('Hello! I am the Data Labeling agent. You can send me requests through the form on the left side, or ask any doubt through the chat input box.')
 
 
@@ -95,7 +98,7 @@ initial_state.when_no_intent_matched().go_to(fallback_state)
 
 
 def build_query_body(session: Session):
-    session.reply('First, I am going to select the documents that match your filters...')
+    session.reply('Request received. First, I am going to select the documents that match your filters...')
     request = json.loads(session.event.message)
     es: Elasticsearch = session.get(ELASTICSEARCH)
     index: str = session.get(INDEX)
@@ -113,20 +116,27 @@ def build_query_body(session: Session):
     )
     message = f'There are {num_docs} documents matching your filters. '
     if request[INSTRUCTIONS]:
-        message += f'The next step is to determine whether these documents satisfy the instructions you defined. This may take some time since each document is analyzed with an LLM. Do you want to proceed?'
-    else:
+        message += f'The next step is to determine whether these documents satisfy the instructions you defined. This may take some time since each document is analyzed with an LLM.'
+        if not session.get(YES_TO_ALL):
+            message += " Do you want to proceed?"
+    elif not session.get(YES_TO_ALL):
         message += f'Do you want to proceed assigning them the score/label you selected?'
     session.reply(message)
-    websocket_platform.reply_options(session, ['Yes', 'No'])
+    if not session.get(YES_TO_ALL):
+        websocket_platform.reply_options(session, ['Yes', 'No', 'Yes to all'])
 
 
 build_query_state.set_body(build_query_body)
+build_query_state.when_variable_matches_operation(YES_TO_ALL, operator.eq, True).go_to(run_query_state)
 build_query_state.when_intent_matched(yes_intent).go_to(run_query_state)
+build_query_state.when_intent_matched(yes_to_all_intent).go_to(run_query_state)
 build_query_state.when_intent_matched(no_intent).go_to(initial_state)
 build_query_state.when_event(ReceiveJSONEvent()).go_to(build_query_state)
 
 
 def run_query_body(session: Session):
+    if isinstance(session.event, ReceiveTextEvent) and session.event.predicted_intent.intent == yes_to_all_intent:
+        session.set(YES_TO_ALL, True)
     es: Elasticsearch = session.get(ELASTICSEARCH)
     index: str = session.get(INDEX)
     query = session.get(QUERY)
@@ -157,6 +167,13 @@ def run_query_body(session: Session):
                 query=query,
                 new_label=request[TARGET_VALUE]
             )
+        num_docs = get_num_docs(
+            es_client=es,
+            index_name=index,
+            query=query
+        )
+        session.reply(json.dumps({REQUEST_ID: session.get(REQUEST)[REQUEST_ID], UPDATED_DOCS: num_docs, IGNORED_DOCS: 0, TOTAL_DOCS: num_docs, FINISHED: True}))
+
     session.reply('Process completed! Ready to listen to your next request.')
 
 
@@ -197,4 +214,4 @@ fallback_state.go_to(initial_state)
 # RUN APPLICATION
 
 if __name__ == '__main__':
-    agent.run()
+    data_labeling_agent.run()

@@ -29,6 +29,8 @@ INITIAL_TIME = 'initial_time'
 UPDATED_DOCS = 'updated_docs'
 IGNORED_DOCS = 'ignored_docs'
 TOTAL_DOCS = 'total_docs'
+FINISHED = 'finished'
+TIME = 'time'
 
 # Elasticsearch index fields
 DOCUMENT_RELEVANCE = 'DOCUMENT_RELEVANCE'
@@ -40,6 +42,7 @@ FROM = 'FROM'
 TO = 'TO'
 
 # Request
+REQUEST_ID = 'id'
 ACTION = 'action'
 TARGET_VALUE = 'target_value'
 DATE_FROM = 'date_from'
@@ -49,6 +52,7 @@ FIELD = 'field'
 OPERATOR = 'operator'
 VALUE = 'value'
 TEXT = 'text'
+TIMESTAMP = 'timestamp'
 document_relevance_dict = {
     2: '🔫 Smoking gun',
     1: '👍 Relevant',
@@ -62,6 +66,7 @@ action_dict = {
 INDEX = 'index'
 QUERY = 'query'
 REQUEST = 'request'
+YES_TO_ALL = 'yes_to_all'
 
 
 EQUALS = 'equals'
@@ -88,7 +93,12 @@ ELASTICSEARCH_INDEX = Property('elasticsearch', 'elasticsearch.index', str, None
 
 # Pages
 
+CURRENT_PAGE = 'current_page'
+HOME = 'Home'
 DATA_LABELING = 'Data Labeling'
 CHAT_FILES = 'Chat Files'
 DASHBOARD = 'Dashboard'
 SETTINGS = 'Settings'
+
+
+REQUEST_HISTORY_FILE = 'request_history_file'

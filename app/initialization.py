@@ -6,9 +6,10 @@ import streamlit as st
 import websocket
 from streamlit.runtime.scriptrunner_utils.script_run_context import add_script_run_ctx
 
-from ui.session_management import session_monitoring
-from ui.vars import *
-from ui.agent.websocket_callbacks import on_open, on_error, on_message, on_close, on_ping, on_pong
+from agents.data_labeling_agent.request import Instruction, Filter
+from agents.utils.websocket_callbacks import on_open, on_error, on_message, on_close, on_ping, on_pong
+from app.session_management import session_monitoring
+from app.vars import *
 
 
 def initialize():

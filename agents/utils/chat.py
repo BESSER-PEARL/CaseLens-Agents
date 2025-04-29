@@ -8,7 +8,9 @@ import streamlit as st
 from besser.agent.core.file import File
 from besser.agent.core.message import Message, MessageType
 from besser.agent.platforms.payload import Payload, PayloadAction, PayloadEncoder
-from ui.vars import *
+
+from agents.data_labeling_agent.request_history import update_entry_by_id
+from app.vars import *
 
 user_type = {
     0: ASSISTANT,
@@ -55,6 +57,7 @@ def write_message(message: Message, key_count: int, stream: bool = False):
                 payload = Payload(action=PayloadAction.USER_MESSAGE, message=option)
                 ws = st.session_state[WEBSOCKET]
                 ws.send(json.dumps(payload, cls=PayloadEncoder))
+                st.session_state[key] = None
 
             st.pills(label='Choose an option', options=message.content, selection_mode='single', on_change=send_option, key=key)
 
@@ -130,4 +133,6 @@ def load_progress_bar():
             if eta_total_seconds > 0:
                 time_message += f' | ETA: {eta_hours:02}:{eta_minutes:02}:{eta_seconds:02}'
             st.text(time_message)
-
+        if st.session_state[PROGRESS][FINISHED]:
+            st.session_state[PROGRESS][FINISHED] = False  # To avoid overwriting multiple times
+            update_entry_by_id(st.secrets[REQUEST_HISTORY_FILE], st.session_state[PROGRESS][REQUEST_ID], {UPDATED_DOCS: updated, IGNORED_DOCS: ignored, TIME: time_message})

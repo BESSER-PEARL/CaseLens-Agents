@@ -1,4 +1,5 @@
 import json
+import os
 from datetime import datetime
 
 import streamlit as st
@@ -7,11 +8,11 @@ from besser.agent.platforms.payload import PayloadAction, Payload, PayloadEncode
 from dateutil.relativedelta import relativedelta
 from elasticsearch import Elasticsearch
 
-from ui.agent.chat import load_chat, load_progress_bar
-from query.request import Request, Instruction, Filter
-from ui.agent.message_input import message_input
-from ui.vars import *
-
+from agents.data_labeling_agent.request_history import update_json_file, iterate_json_file
+from agents.utils.chat import load_chat, load_progress_bar
+from agents.data_labeling_agent.request import Request, Instruction, Filter
+from agents.utils.message_input import message_input
+from app.vars import *
 
 def initialize_elasticsearch(es_host, es_port):
     if ELASTICSEARCH not in st.session_state:
@@ -101,7 +102,7 @@ def checkboxes(key: str, checkboxes_key: str):
 
 def create_request():
     request: Request = Request()
-    action_tab, date_tab, filters_tab, instructions_tab, submit_tab = st.tabs(['Action', 'Date', 'Filters', 'Instructions', '**Send Request**'])
+    action_tab, date_tab, filters_tab, instructions_tab, submit_tab, history_tab = st.tabs(['🎯 Action', '🗓️ Date', '🔍 Filters', '✍️ Instructions', '📨 Send Request', '📜 History'])
     with action_tab:
         # Action and target value
         st.subheader('Action')
@@ -130,8 +131,54 @@ def create_request():
     request.instructions = st.session_state[INSTRUCTIONS]
     with submit_tab:
         load_progress_bar()
+        st.text('📨 Once you have completed your request, send it to the agent.')
         submit_request(request)
+    with history_tab:
+        load_progress_bar()
+        request_history()
     return request
+
+
+def request_history():
+    st.subheader('History of requests')
+    with open(st.secrets[REQUEST_HISTORY_FILE], "rb") as file:
+        file_name = os.path.basename(st.secrets[REQUEST_HISTORY_FILE])
+        st.download_button(
+            label=f"Download {file_name}",
+            data=file,
+            file_name=file_name,
+            icon=":material/download:",
+            mime="application/json"
+        )
+    for i, r in enumerate(iterate_json_file(st.secrets[REQUEST_HISTORY_FILE])):
+        with st.expander(f"Request #{i + 1} at {r[TIMESTAMP]}", expanded=False):
+            if st.button('Submit', type='primary', use_container_width=True, key=f'submit_{i}'):
+                request = Request(
+                    action=r[ACTION],
+                    target_value=r[TARGET_VALUE],
+                    date_from=r[DATE_FROM],
+                    date_to=r[DATE_TO],
+                    filters=[Filter(field=f[FIELD], operator=f[OPERATOR], value=f[VALUE]) for f in r[FILTERS]],
+                    instructions=[Instruction(field=f[FIELD], text=f[TEXT]) for f in r[INSTRUCTIONS]],
+                    timestamp=datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                )
+                # st.session_state[HISTORY].clear()
+                request_json = request.to_json()
+                update_json_file(st.secrets[REQUEST_HISTORY_FILE], [request_json])
+                if PROGRESS in st.session_state:
+                    del st.session_state[PROGRESS]
+                message = f'Request #{request.id} submitted'
+                message = Message(t=MessageType.STR, content=message, is_user=True, timestamp=datetime.now())
+                st.session_state[HISTORY].append(message)
+                payload = Payload(action=PayloadAction.USER_MESSAGE,
+                                  message=json.dumps(request_json))
+                try:
+                    ws = st.session_state[WEBSOCKET]
+                    ws.send(json.dumps(payload, cls=PayloadEncoder))
+                    st.rerun()
+                except Exception as e:
+                    st.error('Your message could not be sent. The connection is already closed')
+            st.json(r)
 
 
 def submit_request(request):
@@ -153,13 +200,16 @@ def submit_request(request):
         ready = False
     if st.button('Submit', disabled=not ready, type='primary', use_container_width=True):
         # st.session_state[HISTORY].clear()
+        request.timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        request_json = request.to_json()
+        update_json_file(st.secrets[REQUEST_HISTORY_FILE], [request_json])
         if PROGRESS in st.session_state:
             del st.session_state[PROGRESS]
-        message = 'Request submitted'  # TODO: Add request reference number, store ref content, user and (later) the answer
+        message = f'Request #{request.id} submitted'
         message = Message(t=MessageType.STR, content=message, is_user=True, timestamp=datetime.now())
         st.session_state[HISTORY].append(message)
         payload = Payload(action=PayloadAction.USER_MESSAGE,
-                          message=json.dumps(request.to_json()))
+                          message=json.dumps(request_json))
         try:
             ws = st.session_state[WEBSOCKET]
             ws.send(json.dumps(payload, cls=PayloadEncoder))
@@ -171,11 +221,12 @@ def submit_request(request):
 
 
 def data_labeling():
-    st.header('Data Labeling')
     cols = st.columns(2)
     with cols[0]:
+        st.header('Data Labeling')
         create_request()
     with cols[1]:
+        st.subheader('Agent')
         chat_container = st.container(height=500)
         message_input()
         with chat_container:

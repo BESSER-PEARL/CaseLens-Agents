@@ -10,7 +10,6 @@ from elasticsearch import Elasticsearch
 from ui.agent.chat import load_chat, load_progress_bar
 from query.request import Request, Instruction, Filter
 from ui.agent.message_input import message_input
-from ui.utils import get_page_height
 from ui.vars import *
 
 
@@ -33,14 +32,26 @@ def instructions():
         st.session_state[INSTRUCTION_INPUT] = ""
 
     st.subheader('Instructions')
-    cols = st.columns([0.2, 0.8])
-    cols[0].selectbox(key=INSTRUCTION_FIELD, label='Select field', options=[SUBJECT, CONTENT, FROM, TO], index=None)
-    cols[1].text_input('Add instruction:', key=INSTRUCTION_INPUT, on_change=add_instruction)
+    st.text('✍️ Define your own filters using natural language.')
+    st.text('You can assign instructions to a specific document field or all fields (leaving it empty)')
+    st.selectbox(key=INSTRUCTION_FIELD, label='Select field', options=[SUBJECT, CONTENT, FROM, TO], index=None, placeholder='Choose a field or leave empty')
+    st.text_input('Add instruction:', key=INSTRUCTION_INPUT, on_change=add_instruction, placeholder='Example: An email where 2 companies are agreeing on prices')
     checkboxes(INSTRUCTIONS, INSTRUCTIONS_CHECKBOXES)
 
 
 def filters():
     st.subheader('Filters')
+    st.text('🔍 You can apply filters to your request.')
+    st.text('Select a document field, an operator and a value.')
+    st.text("Example: SUBJECT contains price")
+    with st.expander('Check the operators documentation', expanded=False):
+        st.markdown('- **equals**: Matches documents where the field value is exactly equal to the specified value.')
+        st.markdown('- **different**: Matches documents where the field value is not equal to the specified value.')
+        st.markdown('- **contains**: Matches documents where the field contains the specified substring (case-sensitive).')
+        st.markdown('- **starts** with: Matches documents where the field value starts with the specified prefix.')
+        st.markdown('- **regexp**: Matches documents where the field value satisfies the given regular expression.')
+        st.markdown('- **fuzzy**: Matches documents where the field value is similar to the specified term, allowing for spelling errors.')
+
     filter_cols = st.columns(4)
     filter_field = filter_cols[0].selectbox(
         key=FILTER_FIELD,
@@ -90,9 +101,11 @@ def checkboxes(key: str, checkboxes_key: str):
 
 def create_request():
     request: Request = Request()
-    action_tab, date_tab, filters_tab, instructions_tab, submit_tab = st.tabs(['Action', 'Date', 'Filters', 'Instructions', 'Submit'])
+    action_tab, date_tab, filters_tab, instructions_tab, submit_tab = st.tabs(['Action', 'Date', 'Filters', 'Instructions', '**Send Request**'])
     with action_tab:
         # Action and target value
+        st.subheader('Action')
+        st.text('🎯 Select the action you want to perform on the database documents')
         request.action = st.pills('Select action', [DOCUMENT_RELEVANCE, DOCUMENT_LABELS], format_func=(lambda x: action_dict[x]))
         if request.action == DOCUMENT_RELEVANCE:
             request.target_value = st.pills('Select value', options=document_relevance_dict.keys(), format_func=(lambda x: document_relevance_dict[x]))
@@ -100,11 +113,13 @@ def create_request():
             request.target_value = st.text_input('Enter label')
     with date_tab:
         # Dates
+        st.subheader('Date')
+        st.text('🗓️ You can filter the documents by date (from and/or to)')
         date_cols = st.columns(2)
-        date_from = date_cols[0].date_input('Select Date Created (From)', value=None, min_value=datetime.today() - relativedelta(years=200), max_value=datetime.today() + relativedelta(years=200))
+        date_from = date_cols[0].date_input('Date Created (From)', value=None, min_value=datetime.today() - relativedelta(years=200), max_value=datetime.today() + relativedelta(years=200))
         if date_from:
             request.date_from = date_from.strftime(DATE_FORMAT)
-        date_to = date_cols[1].date_input('Select Date Created (To)', value=None, min_value=datetime.today() - relativedelta(years=200), max_value=datetime.today() + relativedelta(years=200))
+        date_to = date_cols[1].date_input('Date Created (To)', value=None, min_value=datetime.today() - relativedelta(years=200), max_value=datetime.today() + relativedelta(years=200))
         if date_to:
             request.date_to = date_to.strftime(DATE_FORMAT)
     with filters_tab:
@@ -114,6 +129,7 @@ def create_request():
     request.filters = st.session_state[FILTERS]
     request.instructions = st.session_state[INSTRUCTIONS]
     with submit_tab:
+        load_progress_bar()
         submit_request(request)
     return request
 
@@ -136,7 +152,7 @@ def submit_request(request):
             ''')
         ready = False
     if st.button('Submit', disabled=not ready, type='primary', use_container_width=True):
-        st.session_state[HISTORY].clear()
+        # st.session_state[HISTORY].clear()
         if PROGRESS in st.session_state:
             del st.session_state[PROGRESS]
         message = 'Request submitted'  # TODO: Add request reference number, store ref content, user and (later) the answer
@@ -157,13 +173,12 @@ def submit_request(request):
 def data_labeling():
     st.header('Data Labeling')
     cols = st.columns(2)
-    with cols[0].container(height=get_page_height(subtract=150)):
+    with cols[0]:
         create_request()
     with cols[1]:
-        with st.container(height=get_page_height(subtract=422)):
-            load_chat()
+        chat_container = st.container(height=500)
         message_input()
-        with st.container(border=True, height=200):
-            load_progress_bar()
+        with chat_container:
+            load_chat()
 
 

@@ -102,31 +102,32 @@ def load_chat():
 
 def load_progress_bar():
     if PROGRESS in st.session_state:
-        updated = st.session_state[PROGRESS][UPDATED_DOCS]
-        ignored = st.session_state[PROGRESS][IGNORED_DOCS]
-        total = st.session_state[PROGRESS][TOTAL_DOCS]
-        initial_time = st.session_state[PROGRESS][INITIAL_TIME]
+        with st.container(border=True, height=200):
+            updated = st.session_state[PROGRESS][UPDATED_DOCS]
+            ignored = st.session_state[PROGRESS][IGNORED_DOCS]
+            total = st.session_state[PROGRESS][TOTAL_DOCS]
+            initial_time = st.session_state[PROGRESS][INITIAL_TIME]
 
-        time = datetime.now() - initial_time
-        total_seconds = int(time.total_seconds())
-        if updated + ignored > 0:
-            eta_total_seconds = int(((total - (updated + ignored)) * total_seconds) / (updated + ignored))
-        else:
-            eta_total_seconds = 0
-        hours = total_seconds // 3600
-        minutes = (total_seconds % 3600) // 60
-        seconds = total_seconds % 60
+            time = datetime.now() - initial_time
+            total_seconds = int(time.total_seconds())
+            if updated + ignored > 0:
+                eta_total_seconds = int(((total - (updated + ignored)) * total_seconds) / (updated + ignored))
+            else:
+                eta_total_seconds = 0
+            hours = total_seconds // 3600
+            minutes = (total_seconds % 3600) // 60
+            seconds = total_seconds % 60
 
-        eta_hours = eta_total_seconds // 3600
-        eta_minutes = (eta_total_seconds % 3600) // 60
-        eta_seconds = eta_total_seconds % 60
+            eta_hours = eta_total_seconds // 3600
+            eta_minutes = (eta_total_seconds % 3600) // 60
+            eta_seconds = eta_total_seconds % 60
 
-        st.markdown(f'**{int(((updated + ignored) / total) * 100)}% completed**')
-        st.progress(updated/total, text=f"{updated}/{total} documents updated")
-        st.progress(ignored/total, text=f"{ignored}/{total} documents ignored")
+            st.markdown(f'**{int(((updated + ignored) / total) * 100)}% completed**')
+            st.progress(updated/total, text=f"{updated}/{total} documents updated")
+            st.progress(ignored/total, text=f"{ignored}/{total} documents ignored")
 
-        time_message = f"{hours:02}:{minutes:02}:{seconds:02}"
-        if eta_total_seconds > 0:
-            time_message += f' | ETA: {eta_hours:02}:{eta_minutes:02}:{eta_seconds:02}'
-        st.text(time_message)
+            time_message = f"{hours:02}:{minutes:02}:{seconds:02}"
+            if eta_total_seconds > 0:
+                time_message += f' | ETA: {eta_hours:02}:{eta_minutes:02}:{eta_seconds:02}'
+            st.text(time_message)
 

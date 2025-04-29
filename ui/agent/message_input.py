@@ -6,7 +6,7 @@ import streamlit as st
 from besser.agent.core.message import Message, MessageType
 from besser.agent.platforms.payload import Payload, PayloadAction, PayloadEncoder
 
-from ui.vars import SUBMIT_TEXT, BUTTONS, USER, WEBSOCKET
+from ui.vars import SUBMIT_TEXT, USER, WEBSOCKET
 
 
 def message_input():
@@ -18,10 +18,6 @@ def message_input():
     user_input = st.chat_input("Chat here", on_submit=submit_text)
     if st.session_state[SUBMIT_TEXT]:
         st.session_state[SUBMIT_TEXT] = False
-        if BUTTONS in st.session_state:
-            del st.session_state[BUTTONS]
-        with st.chat_message(USER):
-            st.write(user_input)
         message = Message(t=MessageType.STR, content=user_input, is_user=True, timestamp=datetime.now())
         st.session_state.history.append(message)
         payload = Payload(action=PayloadAction.USER_MESSAGE,

@@ -2,7 +2,6 @@
 from besser.agent.core.property import Property
 
 ASSISTANT = 'assistant'
-BUTTONS = 'buttons'
 HISTORY = 'history'
 QUEUE = 'queue'
 SESSION_MONITORING = 'session_monitoring'
@@ -90,5 +89,6 @@ ELASTICSEARCH_INDEX = Property('elasticsearch', 'elasticsearch.index', str, None
 # Pages
 
 DATA_LABELING = 'Data Labeling'
+CHAT_FILES = 'Chat Files'
 DASHBOARD = 'Dashboard'
 SETTINGS = 'Settings'

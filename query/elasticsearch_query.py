@@ -72,39 +72,47 @@ def scroll_docs(session: Session, es_client, index_name, query, request, llm: LL
         # Process each document in the current batch
         # print(f'Total scroll size: {len(response["hits"]["hits"])}')
         for doc in response["hits"]["hits"]:
-            #print(doc["_source"])  # Example: print the document content
-            if fields:
-                prompt_doc = {
-                    field: doc['_source'][field] for field in fields
-                }
+            doc_not_labeled = True
+            if (request[ACTION] == DOCUMENT_RELEVANCE and doc['_source'][DOCUMENT_RELEVANCE] == request[TARGET_VALUE]) \
+                    or (request[ACTION] == DOCUMENT_LABELS and request[TARGET_VALUE] in doc['_source'][DOCUMENT_LABELS]):
+                # Doc already has the target score/label
+                doc_not_labeled = False
+            if doc_not_labeled:
+                #print(doc["_source"])  # Example: print the document content
+                if fields:
+                    prompt_doc = {
+                        field: doc['_source'][field] for field in fields
+                    }
+                else:
+                    prompt_doc = {
+                        SUBJECT: doc['_source'][SUBJECT],
+                        CONTENT: doc['_source'][CONTENT],
+                        FROM: doc['_source'][FROM],
+                        TO: doc['_source'][TO],
+                    }
+                prompt = prompt_filters + f"Document:\n{prompt_doc}"
+                llm_prediction = run_llm_openai(llm, prompt) if isinstance(llm, LLMOpenAI) else run_llm(llm, prompt)
+                if llm_prediction:
+                    updated_docs += 1
+                    ids.append(doc['_id'])  # TODO: To show list of updated docs
+                    if request[ACTION] == DOCUMENT_RELEVANCE:
+                        update_document_relevance_id(
+                            es_client=es_client,
+                            index_name=index_name,
+                            doc_id=doc['_id'],
+                            relevance_value=request[TARGET_VALUE]
+                        )
+                    elif request[ACTION] == DOCUMENT_LABELS:
+                        append_document_label_id(
+                            es_client=es_client,
+                            index_name=index_name,
+                            doc_id=doc['_id'],
+                            new_label=request[TARGET_VALUE]
+                        )
+                else:
+                    ignored_docs += 1
             else:
-                prompt_doc = {
-                    SUBJECT: doc['_source'][SUBJECT],
-                    CONTENT: doc['_source'][CONTENT],
-                    FROM: doc['_source'][FROM],
-                    TO: doc['_source'][TO],
-                }
-            prompt = prompt_filters + f"Document:\n{prompt_doc}"
-            llm_prediction = run_llm_openai(llm, prompt) if isinstance(llm, LLMOpenAI) else run_llm(llm, prompt)
-            if llm_prediction:
                 updated_docs += 1
-                ids.append(doc['_id'])  # TODO: To show list of updated docs
-                if request[ACTION] == DOCUMENT_RELEVANCE:
-                    update_document_relevance_id(
-                        es_client=es_client,
-                        index_name=index_name,
-                        doc_id=doc['_id'],
-                        relevance_value=request[TARGET_VALUE]
-                    )
-                elif request[ACTION] == DOCUMENT_LABELS:
-                    append_document_label_id(
-                        es_client=es_client,
-                        index_name=index_name,
-                        doc_id=doc['_id'],
-                        new_label=request[TARGET_VALUE]
-                    )
-            else:
-                ignored_docs += 1
             session.reply(json.dumps({UPDATED_DOCS: updated_docs, IGNORED_DOCS: ignored_docs, TOTAL_DOCS: total_docs}))
         # Get the next batch using the scroll ID
         response = es_client.scroll(scroll_id=scroll_id, scroll=scroll_time)

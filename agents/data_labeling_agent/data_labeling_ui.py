@@ -14,11 +14,35 @@ from agents.data_labeling_agent.request import Request, Instruction, Filter
 from agents.utils.message_input import message_input
 from app.vars import *
 
-def initialize_elasticsearch(es_host, es_port):
-    if ELASTICSEARCH not in st.session_state:
-        es_url = f'http://{es_host}:{es_port}'
-        es = Elasticsearch([es_url])
-        st.session_state[ELASTICSEARCH] = es
+
+def action(request: Request):
+    # Action and target value
+    st.subheader('Action')
+    st.text('🎯 Select the action you want to perform on the database documents')
+    request.action = st.pills('Select action', [DOCUMENT_RELEVANCE, DOCUMENT_LABELS],
+                              format_func=(lambda x: action_dict[x]))
+    if request.action == DOCUMENT_RELEVANCE:
+        request.target_value = st.pills('Select value', options=document_relevance_dict.keys(),
+                                        format_func=(lambda x: document_relevance_dict[x]))
+    elif request.action == DOCUMENT_LABELS:
+        request.target_value = st.text_input('Enter label')
+
+
+def date(request: Request):
+    # Dates
+    st.subheader('Date')
+    st.text('🗓️ You can filter the documents by date (from and/or to)')
+    date_cols = st.columns(2)
+    date_from = date_cols[0].date_input('Date Created (From)', value=None,
+                                        min_value=datetime.today() - relativedelta(years=200),
+                                        max_value=datetime.today() + relativedelta(years=200))
+    if date_from:
+        request.date_from = date_from.strftime(DATE_FORMAT)
+    date_to = date_cols[1].date_input('Date Created (To)', value=None,
+                                      min_value=datetime.today() - relativedelta(years=200),
+                                      max_value=datetime.today() + relativedelta(years=200))
+    if date_to:
+        request.date_to = date_to.strftime(DATE_FORMAT)
 
 
 def instructions():
@@ -85,6 +109,7 @@ def filters():
             st.session_state[FILTERS_CHECKBOXES].append(False)
     checkboxes(FILTERS, FILTERS_CHECKBOXES)
 
+
 def checkboxes(key: str, checkboxes_key: str):
     instructions = st.session_state[key]
     instructions_checkboxes = st.session_state[checkboxes_key]
@@ -104,25 +129,9 @@ def create_request():
     request: Request = Request()
     action_tab, date_tab, filters_tab, instructions_tab, submit_tab, history_tab = st.tabs(['🎯 Action', '🗓️ Date', '🔍 Filters', '✍️ Instructions', '📨 Send Request', '📜 History'])
     with action_tab:
-        # Action and target value
-        st.subheader('Action')
-        st.text('🎯 Select the action you want to perform on the database documents')
-        request.action = st.pills('Select action', [DOCUMENT_RELEVANCE, DOCUMENT_LABELS], format_func=(lambda x: action_dict[x]))
-        if request.action == DOCUMENT_RELEVANCE:
-            request.target_value = st.pills('Select value', options=document_relevance_dict.keys(), format_func=(lambda x: document_relevance_dict[x]))
-        elif request.action == DOCUMENT_LABELS:
-            request.target_value = st.text_input('Enter label')
+        action(request)
     with date_tab:
-        # Dates
-        st.subheader('Date')
-        st.text('🗓️ You can filter the documents by date (from and/or to)')
-        date_cols = st.columns(2)
-        date_from = date_cols[0].date_input('Date Created (From)', value=None, min_value=datetime.today() - relativedelta(years=200), max_value=datetime.today() + relativedelta(years=200))
-        if date_from:
-            request.date_from = date_from.strftime(DATE_FORMAT)
-        date_to = date_cols[1].date_input('Date Created (To)', value=None, min_value=datetime.today() - relativedelta(years=200), max_value=datetime.today() + relativedelta(years=200))
-        if date_to:
-            request.date_to = date_to.strftime(DATE_FORMAT)
+        date(request)
     with filters_tab:
         filters()
     with instructions_tab:
@@ -131,7 +140,6 @@ def create_request():
     request.instructions = st.session_state[INSTRUCTIONS]
     with submit_tab:
         load_progress_bar()
-        st.text('📨 Once you have completed your request, send it to the agent.')
         submit_request(request)
     with history_tab:
         load_progress_bar()
@@ -182,6 +190,7 @@ def request_history():
 
 
 def submit_request(request):
+    st.text('📨 Once you have completed your request, send it to the agent.')
     ready = True
     if not request.action:
         st.error('You need to select an action')

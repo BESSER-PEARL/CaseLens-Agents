@@ -174,7 +174,7 @@ def run_query_body(session: Session):
         )
         session.reply(json.dumps({REQUEST_ID: session.get(REQUEST)[REQUEST_ID], UPDATED_DOCS: num_docs, IGNORED_DOCS: 0, TOTAL_DOCS: num_docs, FINISHED: True}))
 
-    session.reply('Process completed! Ready to listen to your next request.')
+    session.reply('✅ Process completed! Ready to listen to your next request.')
 
 
 run_query_state.set_body(run_query_body)

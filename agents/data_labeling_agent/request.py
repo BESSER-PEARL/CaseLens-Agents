@@ -1,8 +1,9 @@
-import json
 from typing import Union
 
+from agents.data_labeling_agent.request_history import get_next_request_id
 from app.vars import *
 import streamlit as st
+
 
 class Instruction:
 

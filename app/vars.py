@@ -67,6 +67,7 @@ INDEX = 'index'
 QUERY = 'query'
 REQUEST = 'request'
 YES_TO_ALL = 'yes_to_all'
+ELASTICSEARCH_CONNECTION_ERROR = 'elasticsearch_connection_error'
 
 
 EQUALS = 'equals'

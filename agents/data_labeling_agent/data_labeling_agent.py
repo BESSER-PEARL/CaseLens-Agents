@@ -5,6 +5,7 @@ import json
 import logging
 import operator
 
+import elastic_transport
 from besser.agent.core.agent import Agent
 from besser.agent.core.session import Session
 from besser.agent.exceptions.logger import logger
@@ -109,24 +110,30 @@ def build_query_body(session: Session):
     )
     session.set(REQUEST, request)
     session.set(QUERY, query)
-    num_docs = get_num_docs(
-        es_client=es,
-        index_name=index,
-        query=query
-    )
-    message = f'There are {num_docs} documents matching your filters. '
-    if request[INSTRUCTIONS]:
-        message += f'The next step is to determine whether these documents satisfy the instructions you defined. This may take some time since each document is analyzed with an LLM.'
+    session.set(ELASTICSEARCH_CONNECTION_ERROR, False)
+    try:
+        num_docs = get_num_docs(
+            es_client=es,
+            index_name=index,
+            query=query
+        )
+        message = f'There are {num_docs} documents matching your filters. '
+        if request[INSTRUCTIONS]:
+            message += f'The next step is to determine whether these documents satisfy the instructions you defined. This may take some time since each document is analyzed with an LLM.'
+            if not session.get(YES_TO_ALL):
+                message += " Do you want to proceed?"
+        elif not session.get(YES_TO_ALL):
+            message += f'Do you want to proceed assigning them the score/label you selected?'
+        session.reply(message)
         if not session.get(YES_TO_ALL):
-            message += " Do you want to proceed?"
-    elif not session.get(YES_TO_ALL):
-        message += f'Do you want to proceed assigning them the score/label you selected?'
-    session.reply(message)
-    if not session.get(YES_TO_ALL):
-        websocket_platform.reply_options(session, ['Yes', 'No', 'Yes to all'])
+            websocket_platform.reply_options(session, ['Yes', 'No', 'Yes to all'])
+    except elastic_transport.ConnectionError as e:
+        session.reply('I could not connect to your Elasticsearch database. Please, make sure the database is running and check the connection parameters.')
+        session.set(ELASTICSEARCH_CONNECTION_ERROR, True)
 
 
 build_query_state.set_body(build_query_body)
+build_query_state.when_variable_matches_operation(ELASTICSEARCH_CONNECTION_ERROR, operator.eq, True).go_to(initial_state)
 build_query_state.when_variable_matches_operation(YES_TO_ALL, operator.eq, True).go_to(run_query_state)
 build_query_state.when_intent_matched(yes_intent).go_to(run_query_state)
 build_query_state.when_intent_matched(yes_to_all_intent).go_to(run_query_state)

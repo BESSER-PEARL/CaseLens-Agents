@@ -13,45 +13,34 @@ from app.vars import *
 
 
 def initialize():
+    for i, agent_name in enumerate(AGENTS):
+        if agent_name not in st.session_state:
+            st.session_state[agent_name] = {}
 
-    if CHAT_PAGE not in st.session_state:
-        st.session_state[CHAT_PAGE] = 1
+        if SUBMIT_TEXT not in st.session_state[agent_name]:
+            st.session_state[agent_name][SUBMIT_TEXT] = False
 
-    if CHAT not in st.session_state:
-        st.session_state[CHAT] = None
+        if HISTORY not in st.session_state[agent_name]:
+            st.session_state[agent_name][HISTORY] = []
 
-    if CHAT not in st.session_state:
-        st.session_state[ATTACHMENTS] = []
+        if QUEUE not in st.session_state[agent_name]:
+            st.session_state[agent_name][QUEUE] = queue.Queue()
 
-    if SUBMIT_TEXT not in st.session_state:
-        st.session_state[SUBMIT_TEXT] = False
-
-    if HISTORY not in st.session_state:
-        st.session_state[HISTORY] = []
-
-    if QUEUE not in st.session_state:
-        st.session_state[QUEUE] = queue.Queue()
-
-    if WEBSOCKET not in st.session_state:
-        try:
-            # We get the websocket host and port from the script arguments
-            host = sys.argv[2]
-            port = sys.argv[3]
-        except Exception as e:
-            # If they are not provided, we use default values
+        if WEBSOCKET not in st.session_state[agent_name]:
             host = 'localhost'
-            port = '8765'
-        ws = websocket.WebSocketApp(f"ws://{host}:{port}/",
-                                    on_open=on_open,
-                                    on_message=on_message,
-                                    on_error=on_error,
-                                    on_close=on_close,
-                                    on_ping=on_ping,
-                                    on_pong=on_pong)
-        websocket_thread = threading.Thread(target=ws.run_forever)
-        add_script_run_ctx(websocket_thread)
-        websocket_thread.start()
-        st.session_state[WEBSOCKET] = ws
+            port = 8765 + i
+            ws = websocket.WebSocketApp(f"ws://{host}:{port}/",
+                                        on_open=on_open,
+                                        on_message=on_message(agent_name),
+                                        on_error=on_error,
+                                        on_close=on_close,
+                                        on_ping=on_ping,
+                                        on_pong=on_pong)
+            websocket_thread = threading.Thread(target=ws.run_forever)
+            add_script_run_ctx(websocket_thread)
+            websocket_thread.start()
+            st.session_state[agent_name][AGENT_WEBSOCKET_PORT] = port
+            st.session_state[agent_name][WEBSOCKET] = ws
 
     if SESSION_MONITORING not in st.session_state:
         session_monitoring_thread = threading.Thread(target=session_monitoring,
@@ -60,16 +49,25 @@ def initialize():
         session_monitoring_thread.start()
         st.session_state[SESSION_MONITORING] = session_monitoring_thread
 
-    if FILTERS not in st.session_state:
-        st.session_state[FILTERS] = []
+    # Data labeling agent
+    if FILTERS not in st.session_state[AGENT_DATA_LABELING]:
+        st.session_state[AGENT_DATA_LABELING][FILTERS] = []
+    if FILTERS_CHECKBOXES not in st.session_state[AGENT_DATA_LABELING]:
+        st.session_state[AGENT_DATA_LABELING][FILTERS_CHECKBOXES] = []
 
-    if FILTERS_CHECKBOXES not in st.session_state:
-        st.session_state[FILTERS_CHECKBOXES] = []
+    if INSTRUCTIONS not in st.session_state[AGENT_DATA_LABELING]:
+        st.session_state[AGENT_DATA_LABELING][INSTRUCTIONS] = []
+    if INSTRUCTIONS_CHECKBOXES not in st.session_state[AGENT_DATA_LABELING]:
+        st.session_state[AGENT_DATA_LABELING][INSTRUCTIONS_CHECKBOXES] = []
 
-    if INSTRUCTIONS not in st.session_state:
-        st.session_state[INSTRUCTIONS] = []
+    # Chat files agent
+    if CHAT_PAGE not in st.session_state[AGENT_CHAT_FILES]:
+        st.session_state[AGENT_CHAT_FILES][CHAT_PAGE] = 1
 
-    if INSTRUCTIONS_CHECKBOXES not in st.session_state:
-        st.session_state[INSTRUCTIONS_CHECKBOXES] = []
+    if CHAT not in st.session_state[AGENT_CHAT_FILES]:
+        st.session_state[AGENT_CHAT_FILES][CHAT] = None
+
+    if ATTACHMENTS not in st.session_state[AGENT_CHAT_FILES]:
+        st.session_state[AGENT_CHAT_FILES][ATTACHMENTS] = []
 
 

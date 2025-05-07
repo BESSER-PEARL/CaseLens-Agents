@@ -37,11 +37,11 @@ def import_chat() -> (Chat, list[File]):
         string_data = stringio.read()
         if chat_type == WHATSAPP:
             chat = whatsapp_loader(string_data)
-        st.session_state[CHAT] = chat
-        st.session_state[ATTACHMENTS] = attachments
+        st.session_state[AGENT_CHAT_FILES][CHAT] = chat
+        st.session_state[AGENT_CHAT_FILES][ATTACHMENTS] = attachments
     else:
-        st.session_state[CHAT] = None
-        st.session_state[ATTACHMENTS] = []
+        st.session_state[AGENT_CHAT_FILES][CHAT] = None
+        st.session_state[AGENT_CHAT_FILES][ATTACHMENTS] = []
     return chat, attachments
 
 
@@ -79,9 +79,9 @@ def chat_files():
     with agent_tab:
         st.subheader('Agent')
         chat_container = st.container(height=520)
-        message_input()
+        message_input(AGENT_CHAT_FILES)
         with chat_container:
-            load_chat()
+            load_chat(AGENT_CHAT_FILES)
 
     with notebook_tab:
         st.write('This tab will be used to store relevant information from the chat (refs to messages, etc.)')
@@ -91,9 +91,9 @@ def display_chat(chat: Chat, attachments: list[File] = None):
     chat_container = st.container(height=chat.config.container_height)
     if chat.config.selected_date or chat.config.selected_message:
         chat.config.selected_page = int(sac.pagination(index=chat.config.selected_page, align='center', jump=True, show_total=True, page_size=chat.config.page_size, total=chat.num_messages()))
-        st.session_state[CHAT_PAGE] = chat.config.selected_page
+        st.session_state[AGENT_CHAT_FILES][CHAT_PAGE] = chat.config.selected_page
     else:
-        chat.config.selected_page = int(sac.pagination(index=st.session_state[CHAT_PAGE], align='center', jump=True, show_total=True, page_size=chat.config.page_size, total=chat.num_messages()))
+        chat.config.selected_page = int(sac.pagination(index=st.session_state[AGENT_CHAT_FILES][CHAT_PAGE], align='center', jump=True, show_total=True, page_size=chat.config.page_size, total=chat.num_messages()))
     colors = {}
     for user in chat.users:
         colors[user.name] = generate_light_color(user.name)

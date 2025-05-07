@@ -1,6 +1,14 @@
 # Streamlit session_state keys
 from besser.agent.core.property import Property
 
+AGENT_DATA_LABELING = 'agent_data_labeling'
+AGENT_CHAT_FILES = 'agent_chat_files'
+AGENTS = [
+    AGENT_DATA_LABELING,
+    AGENT_CHAT_FILES
+]
+AGENT_WEBSOCKET_PORT = 'agent_websocket_port'
+
 ASSISTANT = 'assistant'
 HISTORY = 'history'
 QUEUE = 'queue'

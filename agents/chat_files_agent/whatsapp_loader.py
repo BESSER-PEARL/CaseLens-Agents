@@ -7,7 +7,6 @@ from agents.chat_files_agent.chat_data import User, Chat, WhatsAppMessage
 
 @st.cache_resource(max_entries=1)
 def whatsapp_loader(whatsapp_chat: str):
-    print('loading whatsapp chat')
     chat: Chat = Chat()
     pattern = r'^\[(\d{2}/\d{2}/\d{4}), (\d{2}:\d{2}:\d{2})\] ([^:]+): (.+)$'
     attachment_pattern = r'^\[(\d{2}/\d{2}/\d{4}), (\d{2}:\d{2}:\d{2})\] ([^:]+):\s*<attached: (.+?)>$'

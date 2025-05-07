@@ -6,24 +6,24 @@ import streamlit as st
 from besser.agent.core.message import Message, MessageType
 from besser.agent.platforms.payload import Payload, PayloadAction, PayloadEncoder
 
-from app.vars import SUBMIT_TEXT, USER, WEBSOCKET
+from app.vars import SUBMIT_TEXT, WEBSOCKET, HISTORY
 
 
-def message_input():
+def message_input(agent_name: str):
     def submit_text():
         # Necessary callback due to buf after 1.27.0 (https://github.com/streamlit/streamlit/issues/7629)
         # It was fixed for rerun but with _handle_rerun_script_request it doesn't work
-        st.session_state[SUBMIT_TEXT] = True
+        st.session_state[agent_name][SUBMIT_TEXT] = True
 
     user_input = st.chat_input("Chat here", on_submit=submit_text)
-    if st.session_state[SUBMIT_TEXT]:
-        st.session_state[SUBMIT_TEXT] = False
+    if st.session_state[agent_name][SUBMIT_TEXT]:
+        st.session_state[agent_name][SUBMIT_TEXT] = False
         message = Message(t=MessageType.STR, content=user_input, is_user=True, timestamp=datetime.now())
-        st.session_state.history.append(message)
+        st.session_state[agent_name][HISTORY].append(message)
         payload = Payload(action=PayloadAction.USER_MESSAGE,
                           message=user_input)
         try:
-            ws = st.session_state[WEBSOCKET]
+            ws = st.session_state[agent_name][WEBSOCKET]
             ws.send(json.dumps(payload, cls=PayloadEncoder))
         except Exception as e:
             st.error('Your message could not be sent. The connection is already closed')

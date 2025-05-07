@@ -6,10 +6,9 @@ import streamlit as st
 from besser.agent.core.message import Message, MessageType
 from besser.agent.platforms.payload import PayloadAction, Payload, PayloadEncoder
 from dateutil.relativedelta import relativedelta
-from elasticsearch import Elasticsearch
 
-from agents.data_labeling_agent.request_history import update_json_file, iterate_json_file
-from agents.utils.chat import load_chat, load_progress_bar
+from agents.data_labeling_agent.request_history import update_json_file, iterate_json_file, update_entry_by_id
+from agents.utils.chat import load_chat
 from agents.data_labeling_agent.request import Request, Instruction, Filter
 from agents.utils.message_input import message_input
 from app.vars import *
@@ -47,13 +46,13 @@ def date(request: Request):
 
 def instructions():
     def add_instruction():
-        if st.session_state[INSTRUCTION_INPUT] in [instruction.text for instruction in st.session_state[INSTRUCTIONS]]:
+        if st.session_state[INSTRUCTION_INPUT] in [instruction.text for instruction in st.session_state[AGENT_DATA_LABELING][INSTRUCTIONS]]:
             st.error('Instruction already exists')
             return
         instruction = Instruction(field=st.session_state[INSTRUCTION_FIELD], text=st.session_state[INSTRUCTION_INPUT])
         if instruction.text:
-            st.session_state[INSTRUCTIONS].append(instruction)
-            st.session_state[INSTRUCTIONS_CHECKBOXES].append(False)
+            st.session_state[AGENT_DATA_LABELING][INSTRUCTIONS].append(instruction)
+            st.session_state[AGENT_DATA_LABELING][INSTRUCTIONS_CHECKBOXES].append(False)
         st.session_state[INSTRUCTION_INPUT] = ""
 
     st.subheader('Instructions')
@@ -102,17 +101,17 @@ def filters():
     )
     if filter_cols[3].button('Add filter', disabled=not all([filter_field, filter_operator, filter_value])):
         filter = Filter(field=filter_field, operator=filter_operator, value=filter_value)
-        if (filter.field, filter.operator, filter.value) in [(filter.field, filter.operator, filter.value) for filter in st.session_state[FILTERS]]:
+        if (filter.field, filter.operator, filter.value) in [(filter.field, filter.operator, filter.value) for filter in st.session_state[AGENT_DATA_LABELING][FILTERS]]:
             st.error('Filter already exists')
         else:
-            st.session_state[FILTERS].append(filter)
-            st.session_state[FILTERS_CHECKBOXES].append(False)
+            st.session_state[AGENT_DATA_LABELING][FILTERS].append(filter)
+            st.session_state[AGENT_DATA_LABELING][FILTERS_CHECKBOXES].append(False)
     checkboxes(FILTERS, FILTERS_CHECKBOXES)
 
 
 def checkboxes(key: str, checkboxes_key: str):
-    instructions = st.session_state[key]
-    instructions_checkboxes = st.session_state[checkboxes_key]
+    instructions = st.session_state[AGENT_DATA_LABELING][key]
+    instructions_checkboxes = st.session_state[AGENT_DATA_LABELING][checkboxes_key]
     if len(instructions) > 0:
         for i, instruction in enumerate(instructions):
             instructions_checkboxes[i] = st.checkbox(key=f'checkbox_{instruction.to_str()}', label=instruction.to_str())
@@ -120,8 +119,8 @@ def checkboxes(key: str, checkboxes_key: str):
             if st.button('Remove selection', disabled=not any(instructions_checkboxes), type='primary', key=f'checkboxes_{key}'):
                 instructions = [i for i, b in zip(instructions, instructions_checkboxes) if not b]
                 instructions_checkboxes = [b for b in instructions_checkboxes if not b]  # Only needed if you still need the filtered booleans list
-                st.session_state[key] = instructions
-                st.session_state[checkboxes_key] = instructions_checkboxes
+                st.session_state[AGENT_DATA_LABELING][key] = instructions
+                st.session_state[AGENT_DATA_LABELING][checkboxes_key] = instructions_checkboxes
                 st.rerun()
 
 
@@ -136,8 +135,8 @@ def create_request():
         filters()
     with instructions_tab:
         instructions()
-    request.filters = st.session_state[FILTERS]
-    request.instructions = st.session_state[INSTRUCTIONS]
+    request.filters = st.session_state[AGENT_DATA_LABELING][FILTERS]
+    request.instructions = st.session_state[AGENT_DATA_LABELING][INSTRUCTIONS]
     with submit_tab:
         load_progress_bar()
         submit_request(request)
@@ -170,18 +169,18 @@ def request_history():
                     instructions=[Instruction(field=f[FIELD], text=f[TEXT]) for f in r[INSTRUCTIONS]],
                     timestamp=datetime.now().strftime('%Y-%m-%d %H:%M:%S')
                 )
-                # st.session_state[HISTORY].clear()
+                # st.session_state[AGENT_DATA_LABELING][HISTORY].clear()
                 request_json = request.to_json()
                 update_json_file(st.secrets[REQUEST_HISTORY_FILE], [request_json])
-                if PROGRESS in st.session_state:
-                    del st.session_state[PROGRESS]
+                if PROGRESS in st.session_state[AGENT_DATA_LABELING]:
+                    del st.session_state[AGENT_DATA_LABELING][PROGRESS]
                 message = f'Request #{request.id} submitted'
                 message = Message(t=MessageType.STR, content=message, is_user=True, timestamp=datetime.now())
-                st.session_state[HISTORY].append(message)
+                st.session_state[AGENT_DATA_LABELING][HISTORY].append(message)
                 payload = Payload(action=PayloadAction.USER_MESSAGE,
                                   message=json.dumps(request_json))
                 try:
-                    ws = st.session_state[WEBSOCKET]
+                    ws = st.session_state[AGENT_DATA_LABELING][WEBSOCKET]
                     ws.send(json.dumps(payload, cls=PayloadEncoder))
                     st.rerun()
                 except Exception as e:
@@ -208,25 +207,60 @@ def submit_request(request):
             ''')
         ready = False
     if st.button('Submit', disabled=not ready, type='primary', use_container_width=True):
-        # st.session_state[HISTORY].clear()
+        # st.session_state[AGENT_DATA_LABELING][HISTORY].clear()
         request.timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         request_json = request.to_json()
         update_json_file(st.secrets[REQUEST_HISTORY_FILE], [request_json])
-        if PROGRESS in st.session_state:
-            del st.session_state[PROGRESS]
+        if PROGRESS in st.session_state[AGENT_DATA_LABELING]:
+            del st.session_state[AGENT_DATA_LABELING][PROGRESS]
         message = f'Request #{request.id} submitted'
         message = Message(t=MessageType.STR, content=message, is_user=True, timestamp=datetime.now())
-        st.session_state[HISTORY].append(message)
+        st.session_state[AGENT_DATA_LABELING][HISTORY].append(message)
         payload = Payload(action=PayloadAction.USER_MESSAGE,
                           message=json.dumps(request_json))
         try:
-            ws = st.session_state[WEBSOCKET]
+            ws = st.session_state[AGENT_DATA_LABELING][WEBSOCKET]
             ws.send(json.dumps(payload, cls=PayloadEncoder))
             st.rerun()
         except Exception as e:
             st.error('Your message could not be sent. The connection is already closed')
     st.text('Check the content of the request:')
     st.json(request.to_json(), expanded=False)
+
+
+def load_progress_bar():
+    if PROGRESS in st.session_state:
+        with st.container(border=True, height=200):
+            updated = st.session_state[PROGRESS][UPDATED_DOCS]
+            ignored = st.session_state[PROGRESS][IGNORED_DOCS]
+            total = st.session_state[PROGRESS][TOTAL_DOCS]
+            initial_time = st.session_state[PROGRESS][INITIAL_TIME]
+
+            time = datetime.now() - initial_time
+            total_seconds = int(time.total_seconds())
+            if updated + ignored > 0:
+                eta_total_seconds = int(((total - (updated + ignored)) * total_seconds) / (updated + ignored))
+            else:
+                eta_total_seconds = 0
+            hours = total_seconds // 3600
+            minutes = (total_seconds % 3600) // 60
+            seconds = total_seconds % 60
+
+            eta_hours = eta_total_seconds // 3600
+            eta_minutes = (eta_total_seconds % 3600) // 60
+            eta_seconds = eta_total_seconds % 60
+
+            st.markdown(f'**{int(((updated + ignored) / total) * 100)}% completed**')
+            st.progress(updated/total, text=f"{updated}/{total} documents updated")
+            st.progress(ignored/total, text=f"{ignored}/{total} documents ignored")
+
+            time_message = f"{hours:02}:{minutes:02}:{seconds:02}"
+            if eta_total_seconds > 0:
+                time_message += f' | ETA: {eta_hours:02}:{eta_minutes:02}:{eta_seconds:02}'
+            st.text(time_message)
+        if st.session_state[PROGRESS][FINISHED]:
+            st.session_state[PROGRESS][FINISHED] = False  # To avoid overwriting multiple times
+            update_entry_by_id(st.secrets[REQUEST_HISTORY_FILE], st.session_state[PROGRESS][REQUEST_ID], {UPDATED_DOCS: updated, IGNORED_DOCS: ignored, TIME: time_message})
 
 
 def data_labeling():
@@ -236,9 +270,9 @@ def data_labeling():
         create_request()
     with cols[1]:
         st.subheader('Agent')
-        chat_container = st.container(height=500)
-        message_input()
+        chat_container = st.container(height=600)
+        message_input(AGENT_DATA_LABELING)
         with chat_container:
-            load_chat()
+            load_chat(AGENT_DATA_LABELING)
 
 

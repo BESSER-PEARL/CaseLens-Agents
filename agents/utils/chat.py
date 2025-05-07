@@ -9,7 +9,6 @@ from besser.agent.core.file import File
 from besser.agent.core.message import Message, MessageType
 from besser.agent.platforms.payload import Payload, PayloadAction, PayloadEncoder
 
-from agents.data_labeling_agent.request_history import update_entry_by_id
 from app.vars import *
 
 user_type = {
@@ -33,7 +32,7 @@ def write_or_stream(content, stream: bool):
         st.write(content)
 
 
-def write_message(message: Message, key_count: int, stream: bool = False):
+def write_message(agent_name: str, message: Message, key_count: int, stream: bool = False):
     key = f'message_{key_count}'
     with st.chat_message(user_type[message.is_user]):
         if message.type == MessageType.AUDIO:
@@ -53,11 +52,11 @@ def write_message(message: Message, key_count: int, stream: bool = False):
             def send_option():
                 option = st.session_state[key]
                 message = Message(t=MessageType.STR, content=option, is_user=True, timestamp=datetime.now())
-                st.session_state.history.append(message)
+                st.session_state[agent_name][HISTORY].append(message)
                 payload = Payload(action=PayloadAction.USER_MESSAGE, message=option)
-                ws = st.session_state[WEBSOCKET]
+                ws = st.session_state[agent_name][WEBSOCKET]
                 ws.send(json.dumps(payload, cls=PayloadEncoder))
-                st.session_state[key] = None
+                st.session_state[agent_name][key] = None
 
             st.pills(label='Choose an option', options=message.content, selection_mode='single', on_change=send_option, key=key)
 
@@ -90,49 +89,14 @@ def write_message(message: Message, key_count: int, stream: bool = False):
             write_or_stream(message.content, stream)
 
 
-def load_chat():
+def load_chat(agent_name: str):
     key_count = 0
-    for message in st.session_state[HISTORY]:
-        write_message(message, key_count, stream=False)
+    for message in st.session_state[agent_name][HISTORY]:
+        write_message(agent_name, message, key_count, stream=False)
         key_count += 1
 
-    while not st.session_state[QUEUE].empty():
-        message = st.session_state[QUEUE].get()
-        st.session_state[HISTORY].append(message)
-        write_message(message, key_count, stream=True)
+    while not st.session_state[agent_name][QUEUE].empty():
+        message = st.session_state[agent_name][QUEUE].get()
+        st.session_state[agent_name][HISTORY].append(message)
+        write_message(agent_name, message, key_count, stream=True)
         key_count += 1
-
-
-def load_progress_bar():
-    if PROGRESS in st.session_state:
-        with st.container(border=True, height=200):
-            updated = st.session_state[PROGRESS][UPDATED_DOCS]
-            ignored = st.session_state[PROGRESS][IGNORED_DOCS]
-            total = st.session_state[PROGRESS][TOTAL_DOCS]
-            initial_time = st.session_state[PROGRESS][INITIAL_TIME]
-
-            time = datetime.now() - initial_time
-            total_seconds = int(time.total_seconds())
-            if updated + ignored > 0:
-                eta_total_seconds = int(((total - (updated + ignored)) * total_seconds) / (updated + ignored))
-            else:
-                eta_total_seconds = 0
-            hours = total_seconds // 3600
-            minutes = (total_seconds % 3600) // 60
-            seconds = total_seconds % 60
-
-            eta_hours = eta_total_seconds // 3600
-            eta_minutes = (eta_total_seconds % 3600) // 60
-            eta_seconds = eta_total_seconds % 60
-
-            st.markdown(f'**{int(((updated + ignored) / total) * 100)}% completed**')
-            st.progress(updated/total, text=f"{updated}/{total} documents updated")
-            st.progress(ignored/total, text=f"{ignored}/{total} documents ignored")
-
-            time_message = f"{hours:02}:{minutes:02}:{seconds:02}"
-            if eta_total_seconds > 0:
-                time_message += f' | ETA: {eta_hours:02}:{eta_minutes:02}:{eta_seconds:02}'
-            st.text(time_message)
-        if st.session_state[PROGRESS][FINISHED]:
-            st.session_state[PROGRESS][FINISHED] = False  # To avoid overwriting multiple times
-            update_entry_by_id(st.secrets[REQUEST_HISTORY_FILE], st.session_state[PROGRESS][REQUEST_ID], {UPDATED_DOCS: updated, IGNORED_DOCS: ignored, TIME: time_message})

@@ -27,66 +27,70 @@ except ImportError:
                    "the requirements/requirements-extras.txt file")
 
 
-def on_message(ws, payload_str):
-    # https://github.com/streamlit/streamlit/issues/2838
-    streamlit_session = get_streamlit_session()
-    payload: Payload = Payload.decode(payload_str)
-    content = None
-    if payload.action == PayloadAction.AGENT_REPLY_STR.value:
-        try:
-            content = json.loads(payload.message)
-            # Get data for progress bar
-            if UPDATED_DOCS in content and IGNORED_DOCS in content and TOTAL_DOCS in content:
-                if PROGRESS not in streamlit_session._session_state:
-                    content[INITIAL_TIME] = datetime.now()
-                else:
-                    content[INITIAL_TIME] = streamlit_session._session_state[PROGRESS][INITIAL_TIME]
-                streamlit_session._session_state[PROGRESS] = content
-                streamlit_session._handle_rerun_script_request()
-        except Exception:
-            content = payload.message
-            t = MessageType.STR
-    elif payload.action == PayloadAction.AGENT_REPLY_MARKDOWN.value:
-        content = payload.message
-        t = MessageType.MARKDOWN
-    elif payload.action == PayloadAction.AGENT_REPLY_HTML.value:
-        content = payload.message
-        t = MessageType.HTML
-    elif payload.action == PayloadAction.AGENT_REPLY_FILE.value:
-        content = payload.message
-        t = MessageType.FILE
-    elif payload.action == PayloadAction.AGENT_REPLY_IMAGE.value:
-        decoded_data = base64.b64decode(payload.message)  # Decode base64 back to bytes
-        np_data = np.frombuffer(decoded_data, np.uint8)  # Convert bytes to numpy array
-        img = cv2.imdecode(np_data, cv2.IMREAD_COLOR)  # Decode numpy array back to image
-        content = img
-        t = MessageType.IMAGE
-    elif payload.action == PayloadAction.AGENT_REPLY_DF.value:
-        content = pd.read_json(StringIO(payload.message))
-        t = MessageType.DATAFRAME
-    elif payload.action == PayloadAction.AGENT_REPLY_PLOTLY.value:
-        content = plotly.io.from_json(payload.message)
-        t = MessageType.PLOTLY
-    elif payload.action == PayloadAction.AGENT_REPLY_LOCATION.value:
-        content = {
-            'latitude': [payload.message['latitude']],
-            'longitude': [payload.message['longitude']]
-        }
-        t = MessageType.LOCATION
-    elif payload.action == PayloadAction.AGENT_REPLY_OPTIONS.value:
-        t = MessageType.OPTIONS
-        d = json.loads(payload.message)
-        content = []
-        for button in d.values():
-            content.append(button)
-    elif payload.action == PayloadAction.AGENT_REPLY_RAG.value:
-        t = MessageType.RAG_ANSWER
-        content = payload.message
-    if content is not None:
-        message = Message(t=t, content=content, is_user=False, timestamp=datetime.now())
-        streamlit_session._session_state[QUEUE].put(message)
+def on_message(agent_name: str):
 
-    streamlit_session._handle_rerun_script_request()
+    def on_message_with_agent_name(ws, payload_str):
+        # https://github.com/streamlit/streamlit/issues/2838
+        streamlit_session = get_streamlit_session()
+        payload: Payload = Payload.decode(payload_str)
+        content = None
+        if payload.action == PayloadAction.AGENT_REPLY_STR.value:
+            try:
+                content = json.loads(payload.message)
+                # Get data for progress bar
+                if UPDATED_DOCS in content and IGNORED_DOCS in content and TOTAL_DOCS in content:
+                    if PROGRESS not in streamlit_session._session_state:
+                        content[INITIAL_TIME] = datetime.now()
+                    else:
+                        content[INITIAL_TIME] = streamlit_session._session_state[PROGRESS][INITIAL_TIME]
+                    streamlit_session._session_state[PROGRESS] = content
+                    streamlit_session._handle_rerun_script_request()
+            except Exception:
+                content = payload.message
+                t = MessageType.STR
+        elif payload.action == PayloadAction.AGENT_REPLY_MARKDOWN.value:
+            content = payload.message
+            t = MessageType.MARKDOWN
+        elif payload.action == PayloadAction.AGENT_REPLY_HTML.value:
+            content = payload.message
+            t = MessageType.HTML
+        elif payload.action == PayloadAction.AGENT_REPLY_FILE.value:
+            content = payload.message
+            t = MessageType.FILE
+        elif payload.action == PayloadAction.AGENT_REPLY_IMAGE.value:
+            decoded_data = base64.b64decode(payload.message)  # Decode base64 back to bytes
+            np_data = np.frombuffer(decoded_data, np.uint8)  # Convert bytes to numpy array
+            img = cv2.imdecode(np_data, cv2.IMREAD_COLOR)  # Decode numpy array back to image
+            content = img
+            t = MessageType.IMAGE
+        elif payload.action == PayloadAction.AGENT_REPLY_DF.value:
+            content = pd.read_json(StringIO(payload.message))
+            t = MessageType.DATAFRAME
+        elif payload.action == PayloadAction.AGENT_REPLY_PLOTLY.value:
+            content = plotly.io.from_json(payload.message)
+            t = MessageType.PLOTLY
+        elif payload.action == PayloadAction.AGENT_REPLY_LOCATION.value:
+            content = {
+                'latitude': [payload.message['latitude']],
+                'longitude': [payload.message['longitude']]
+            }
+            t = MessageType.LOCATION
+        elif payload.action == PayloadAction.AGENT_REPLY_OPTIONS.value:
+            t = MessageType.OPTIONS
+            d = json.loads(payload.message)
+            content = []
+            for button in d.values():
+                content.append(button)
+        elif payload.action == PayloadAction.AGENT_REPLY_RAG.value:
+            t = MessageType.RAG_ANSWER
+            content = payload.message
+        if content is not None:
+            message = Message(t=t, content=content, is_user=False, timestamp=datetime.now())
+            streamlit_session._session_state[agent_name][QUEUE].put(message)
+
+        streamlit_session._handle_rerun_script_request()
+
+    return on_message_with_agent_name
 
 
 def on_error(ws, error):

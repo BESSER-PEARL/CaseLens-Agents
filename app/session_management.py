@@ -4,7 +4,7 @@ from streamlit.runtime import Runtime
 from streamlit.runtime.app_session import AppSession
 from streamlit.runtime.scriptrunner_utils.script_run_context import get_script_run_ctx
 
-from app.vars import WEBSOCKET
+from app.vars import WEBSOCKET, AGENTS
 
 
 def get_streamlit_session() -> AppSession or None:
@@ -24,5 +24,6 @@ def session_monitoring(interval: int):
         time.sleep(interval)
         if not runtime.is_active_session(session.id):
             runtime.close_session(session.id)
-            session.session_state[WEBSOCKET].close()
+            for agent_name in AGENTS:
+                session.session_state[agent_name][WEBSOCKET].close()
             break

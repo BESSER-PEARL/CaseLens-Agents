@@ -157,10 +157,20 @@ def print_message(message: Message, last_datetime, last_user, owner, config, i, 
         elif attachment.type.startswith('video'):
             message_markdown = f"""
                         <div id="message_{i + 1}" class="user_{blankspace_to_underscore(message.user.name)}" style="{'border: 3px solid #ff0026;' if i + 1 == config.selected_message else ''}">
-                            <video controls width="300">
+                            <video controls width="300px">
                                 <source src="data:video/mp4;base64,{attachment.base64}" type="video/mp4">
                                 Your browser does not support the video tag.
                             </video>
+                            {f'<p class="message_timestamp" style="margin-top: 0px;">{message.timestamp}</p>' if config.show_timestamps else ''}
+                        </div>
+                        """
+        elif attachment.type.startswith('audio'):
+            message_markdown = f"""
+                        <div id="message_{i + 1}" class="user_{blankspace_to_underscore(message.user.name)}" style="{'border: 3px solid #ff0026;' if i + 1 == config.selected_message else ''}">
+                            <audio controls style="width: 500px;">
+                                <source src="data:audio/mp4;base64,{attachment.base64}" type="audio/mp4">
+                                Your browser does not support the audio tag.
+                            </audio>
                             {f'<p class="message_timestamp" style="margin-top: 0px;">{message.timestamp}</p>' if config.show_timestamps else ''}
                         </div>
                         """

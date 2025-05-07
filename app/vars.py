@@ -103,3 +103,13 @@ SETTINGS = 'Settings'
 
 
 REQUEST_HISTORY_FILE = 'request_history_file'
+
+
+CHAT = 'chat'
+CHAT_PAGE = 'chat_page'
+ATTACHMENTS = 'attachments'
+WHATSAPP = 'WhatsApp'
+
+CHAT_TYPES = [
+    WHATSAPP
+]

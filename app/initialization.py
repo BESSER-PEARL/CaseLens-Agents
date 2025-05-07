@@ -13,6 +13,16 @@ from app.vars import *
 
 
 def initialize():
+
+    if CHAT_PAGE not in st.session_state:
+        st.session_state[CHAT_PAGE] = 1
+
+    if CHAT not in st.session_state:
+        st.session_state[CHAT] = None
+
+    if CHAT not in st.session_state:
+        st.session_state[ATTACHMENTS] = []
+
     if SUBMIT_TEXT not in st.session_state:
         st.session_state[SUBMIT_TEXT] = False
 

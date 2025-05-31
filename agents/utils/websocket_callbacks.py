@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import ast
 import base64
 import json
 from datetime import datetime
@@ -44,6 +45,10 @@ def on_message(agent_name: str):
                     else:
                         content[INITIAL_TIME] = streamlit_session._session_state[PROGRESS][INITIAL_TIME]
                     streamlit_session._session_state[PROGRESS] = content
+                    streamlit_session._handle_rerun_script_request()
+                if MESSAGE_IDS in content:
+                    message_ids = ast.literal_eval(content[MESSAGE_IDS].strip())
+                    streamlit_session._session_state[MESSAGE_IDS] = message_ids
                     streamlit_session._handle_rerun_script_request()
             except Exception:
                 content = payload.message

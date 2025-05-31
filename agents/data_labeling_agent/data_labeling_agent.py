@@ -72,7 +72,7 @@ fallback_state = data_labeling_agent.new_state('fallback_state')
 # STATES BODIES' DEFINITION + TRANSITIONS
 
 
-def initialization_state_body(session: Session):
+def initialization_body(session: Session):
     # Establish connection to elasticsearch
     es_host = data_labeling_agent.get_property(ELASTICSEARCH_HOST)
     es_port = data_labeling_agent.get_property(ELASTICSEARCH_PORT)
@@ -85,15 +85,15 @@ def initialization_state_body(session: Session):
     session.reply('Hello! I am the Data Labeling agent. You can send me requests through the form on the left side, or ask any doubt through the chat input box.')
 
 
-initialization_state.set_body(initialization_state_body)
+initialization_state.set_body(initialization_body)
 initialization_state.go_to(initial_state)
 
 
-def initial_state_body(session: Session):
+def initial_body(session: Session):
     pass
 
 
-initial_state.set_body(initial_state_body)
+initial_state.set_body(initial_body)
 initial_state.when_event(ReceiveJSONEvent()).go_to(build_query_state)
 initial_state.when_no_intent_matched().go_to(fallback_state)
 
@@ -186,13 +186,6 @@ def run_query_body(session: Session):
 
 run_query_state.set_body(run_query_body)
 run_query_state.go_to(initial_state)
-
-
-def help_body(session: Session):
-    session.reply('you need help?')
-
-
-# help_state.set_body(help_body)
 
 
 def fallback_body(session: Session):

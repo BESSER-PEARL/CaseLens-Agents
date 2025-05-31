@@ -111,9 +111,12 @@ SETTINGS = 'Settings'
 
 
 REQUEST_HISTORY_FILE = 'request_history_file'
+CHAT_NOTEBOOK_FILE = 'chat_notebook_file'
+CHATS_DIRECTORY = 'chats_directory'
 
 
 CHAT = 'chat'
+MESSAGE_IDS = 'message_ids'
 CHAT_PAGE = 'chat_page'
 ATTACHMENTS = 'attachments'
 WHATSAPP = 'WhatsApp'

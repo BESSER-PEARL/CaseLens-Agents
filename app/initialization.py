@@ -66,8 +66,3 @@ def initialize():
 
     if CHAT not in st.session_state[AGENT_CHAT_FILES]:
         st.session_state[AGENT_CHAT_FILES][CHAT] = None
-
-    if ATTACHMENTS not in st.session_state[AGENT_CHAT_FILES]:
-        st.session_state[AGENT_CHAT_FILES][ATTACHMENTS] = []
-
-

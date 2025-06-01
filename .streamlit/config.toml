@@ -1,2 +1,6 @@
 [client]
 toolbarMode = "minimal"
+
+[server]
+maxUploadSize = 350
+maxMessageSize = 350

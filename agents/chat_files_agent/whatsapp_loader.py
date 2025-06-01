@@ -7,8 +7,8 @@ from app.vars import WHATSAPP
 
 
 @st.cache_resource(max_entries=1)
-def whatsapp_loader(whatsapp_chat: str):
-    chat: Chat = Chat(chat_type=WHATSAPP)
+def whatsapp_loader(name: str, whatsapp_chat: str):
+    chat: Chat = Chat(name=name, chat_type=WHATSAPP)
     pattern = r'^\[(\d{2}/\d{2}/\d{4}), (\d{2}:\d{2}:\d{2})\] ([^:]+): (.+)$'
     attachment_pattern = r'^\[(\d{2}/\d{2}/\d{4}), (\d{2}:\d{2}:\d{2})\] ([^:]+):\s*<attached: (.+?)>$'
 

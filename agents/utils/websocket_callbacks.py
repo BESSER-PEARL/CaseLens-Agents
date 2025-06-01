@@ -13,6 +13,7 @@ from besser.agent.core.message import MessageType, Message
 from besser.agent.exceptions.logger import logger
 from besser.agent.platforms.payload import PayloadAction, Payload
 
+from agents.chat_files_agent.notebook import add_notebook_topic_entry
 from app.session_management import get_streamlit_session
 from app.vars import *
 
@@ -46,9 +47,12 @@ def on_message(agent_name: str):
                         content[INITIAL_TIME] = streamlit_session._session_state[PROGRESS][INITIAL_TIME]
                     streamlit_session._session_state[PROGRESS] = content
                     streamlit_session._handle_rerun_script_request()
-                if MESSAGE_IDS in content:
-                    message_ids = ast.literal_eval(content[MESSAGE_IDS].strip())
-                    streamlit_session._session_state[MESSAGE_IDS] = message_ids
+                if CHAT_NAME in content and MESSAGE_IDS in content and TOPIC in content:
+                    chat_name = content[CHAT_NAME]
+                    message_ids = content[MESSAGE_IDS]
+                    topic = content[TOPIC]
+                    # streamlit_session._session_state[MESSAGE_IDS] = message_ids
+                    add_notebook_topic_entry(chat_name=chat_name, topic=topic, message_ids=message_ids)
                     streamlit_session._handle_rerun_script_request()
             except Exception:
                 content = payload.message

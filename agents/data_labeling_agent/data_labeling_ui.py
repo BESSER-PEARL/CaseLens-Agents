@@ -7,7 +7,7 @@ from besser.agent.core.message import Message, MessageType
 from besser.agent.platforms.payload import PayloadAction, Payload, PayloadEncoder
 from dateutil.relativedelta import relativedelta
 
-from agents.data_labeling_agent.request_history import update_json_file, iterate_json_file, update_entry_by_id
+from agents.utils.json_utils import iterate_json_file, update_entry_by_id, update_json_file
 from agents.utils.chat import load_chat
 from agents.data_labeling_agent.request import Request, Instruction, Filter
 from agents.utils.message_input import message_input

@@ -14,7 +14,6 @@ from agents.chat_files_agent.chat_data import User, Chat, Message
 from agents.chat_files_agent.json_loader import json_loader
 from agents.chat_files_agent.utils import generate_light_color, blankspace_to_underscore, html_text_processing
 from agents.chat_files_agent.whatsapp_loader import whatsapp_loader
-from agents.data_labeling_agent.request_history import iterate_json_file
 from agents.utils.chat import load_chat
 from agents.utils.message_input import message_input
 from app.vars import *
@@ -32,13 +31,13 @@ def import_chat():
     chat = None
     st.subheader('Import a new chat file')
     chat_type: str = st.selectbox(label="What kind of chat are you importing?", options=CHAT_TYPES, index=0)
+    chat_name = st.text_input(label='Name of the chat')
     new_chat_file = st.file_uploader("Upload a new chat file", accept_multiple_files=False)
     if new_chat_file:
         stringio = StringIO(new_chat_file.getvalue().decode("utf-8"))
         string_data = stringio.read()
         if chat_type == WHATSAPP:
-            chat = whatsapp_loader(string_data)
-    chat_name = st.text_input(label='Name of the chat')
+            chat = whatsapp_loader(name=chat_name, whatsapp_chat=string_data)
     ok = chat and chat_name
     if st.button(label='Load', disabled=not ok, type='primary'):
         folder_path = st.secrets[CHATS_DIRECTORY]
@@ -54,22 +53,22 @@ def select_chat() -> (Chat, list[File]):
     if not chat_files:
         st.info('There are no existing chats. Go to the Import tab to create a new one.')
         return None, None
-    chat_file = st.radio(label='Select a chat', options=chat_files, index=None)
-    if chat_file:
-        file_path = str(os.path.join(st.secrets[CHATS_DIRECTORY], chat_file))
+    chat_file_name = st.radio(label='Select a chat', options=chat_files, index=None)
+    if chat_file_name:
+        file_path = str(os.path.join(st.secrets[CHATS_DIRECTORY], chat_file_name))
         chat = json_loader(file_path)
-        if chat_file != st.session_state[AGENT_CHAT_FILES][CHAT]:
+        if chat.name != st.session_state[AGENT_CHAT_FILES][CHAT_NAME]:
             # Send the name of the selected chat file to the agent
-            st.session_state[AGENT_CHAT_FILES][CHAT] = chat_file
+            st.session_state[AGENT_CHAT_FILES][CHAT_NAME] = chat.name
             payload = Payload(action=PayloadAction.USER_MESSAGE,
-                              message=json.dumps({CHAT: chat_file}))
+                              message=json.dumps({CHAT: chat_file_name}))
             try:
                 ws = st.session_state[AGENT_CHAT_FILES][WEBSOCKET]
                 ws.send(json.dumps(payload, cls=PayloadEncoder))
             except Exception as e:
                 st.error('Your message could not be sent. The connection is already closed')
     else:
-        st.session_state[AGENT_CHAT_FILES][CHAT] = None
+        st.session_state[AGENT_CHAT_FILES][CHAT_NAME] = None
     attachments_files: list[UploadedFile] = st.file_uploader("Upload attachments", accept_multiple_files=True)
     if attachments_files:
         attachments: list[File] = process_attachments(attachments_files)
@@ -93,24 +92,35 @@ def config_chat(chat: Chat):
 
 
 def notebook(chat: Chat):
-    st.subheader('Notebook')
+    col1, col2 = st.columns(2)
+    col1.subheader('Notebook')
     if 'message_ids' in st.session_state:
         for message_id in st.session_state['message_ids']:
             if st.button(f'Message {message_id}', key=f'message_id_{message_id}'):
                 chat.config.selected_message = message_id
 
-    with open(st.secrets[CHAT_NOTEBOOK_FILE], "rb") as file:
+    with open(st.secrets[CHAT_NOTEBOOK_FILE], "r", encoding='utf-8') as file:
         file_name = os.path.basename(st.secrets[CHAT_NOTEBOOK_FILE])
-        st.download_button(
+        col2.download_button(
             label=f"Download {file_name}",
             data=file,
             file_name=file_name,
             icon=":material/download:",
             mime="application/json"
         )
-    for i, r in enumerate(iterate_json_file(st.secrets[CHAT_NOTEBOOK_FILE])):
-        with st.expander(f"Request #{i + 1} at {r[TIMESTAMP]}", expanded=False):
-            st.json(r)
+    with open(st.secrets[CHAT_NOTEBOOK_FILE], "r", encoding='utf-8') as file:
+        notebook = json.load(file)
+    # TODO: Currently, only topic entries
+    notebook_conteiner = col1.container(height=400, border=True)
+    messages_conteiner = col2.container(height=400, border=True)
+    topic_entries = [entry for entry in notebook if (entry[ENTRY_TYPE] == 'topic' and entry[CHAT_NAME] == st.session_state[AGENT_CHAT_FILES][CHAT_NAME])]
+    selected_topic_entry = notebook_conteiner.radio(label=f'Select a topic', options=topic_entries, format_func=lambda entry: entry[TOPIC])
+    if selected_topic_entry:
+        messages_conteiner.text(f'Messages about "{selected_topic_entry[TOPIC]}"')
+        messages_conteiner.text(f'Created at: "{selected_topic_entry[TIMESTAMP]}"')
+        for message_id in selected_topic_entry[MESSAGE_IDS]:
+            if messages_conteiner.button(label=f'Message {message_id}', key=f'message_button_{message_id}'):
+                chat.config.selected_message = message_id
 
 
 def chat_files():
@@ -275,4 +285,5 @@ def add_js_for_scrolling(chat: Chat):
                 scrollToMessage()
                 </script>
             """
-        html(js)
+        with st.container(height=1, border=False):
+            html(js)

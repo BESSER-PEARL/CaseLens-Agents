@@ -64,5 +64,5 @@ def initialize():
     if CHAT_PAGE not in st.session_state[AGENT_CHAT_FILES]:
         st.session_state[AGENT_CHAT_FILES][CHAT_PAGE] = 1
 
-    if CHAT not in st.session_state[AGENT_CHAT_FILES]:
-        st.session_state[AGENT_CHAT_FILES][CHAT] = None
+    if CHAT_NAME not in st.session_state[AGENT_CHAT_FILES]:
+        st.session_state[AGENT_CHAT_FILES][CHAT_NAME] = None

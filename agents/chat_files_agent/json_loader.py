@@ -10,7 +10,7 @@ def json_loader(filepath: str):
         with open(filepath, 'r', encoding='utf-8') as f:
             data = json.load(f)
             chat_type = data['config']['chat_type']
-            chat: Chat = Chat(chat_type=chat_type)
+            chat: Chat = Chat(name=data['name'], chat_type=chat_type)
 
             chat.config.container_height = data['config']['container_height']
             chat.config.right_aligned = data['config']['right_aligned']

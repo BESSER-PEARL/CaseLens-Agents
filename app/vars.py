@@ -116,7 +116,11 @@ CHATS_DIRECTORY = 'chats_directory'
 
 
 CHAT = 'chat'
+CHAT_NAME = 'chat_name'
 MESSAGE_IDS = 'message_ids'
+ENTRY_TYPE = 'entry_type'
+TOPIC = 'topic'
+NOTEBOOK_SELECTED_TOPIC = 'notebook_selected_topic'
 CHAT_PAGE = 'chat_page'
 ATTACHMENTS = 'attachments'
 WHATSAPP = 'WhatsApp'

@@ -1,6 +1,7 @@
 # You may need to add your working directory to the Python path. To do so, uncomment the following lines of code
 # import sys
 # sys.path.append("/Path/to/directory/agentic-framework") # Replace with your directory path
+import ast
 import json
 import logging
 import os
@@ -118,8 +119,12 @@ def find_topic_body(session: Session):
         system_message='Your will receive a WhatsApp conversation in JSON format (it can be in any language, or combining some languages), and a topic. Your job is to identify those messages talking about that topic. Return ONLY a list containing the message indexes.',
         message=f'Topic: {topic}\n{session.get(CHAT).to_prompt_format()}'
     )
-    session.reply('Done!')
-    session.reply(json.dumps({MESSAGE_IDS: answer}))
+    message_ids = ast.literal_eval(answer.strip())
+    if message_ids:
+        session.reply(json.dumps({CHAT_NAME: session.get(CHAT).name, TOPIC: topic, MESSAGE_IDS: message_ids}))
+        session.reply('Done! Go to the notebook to see the messages I identified.')
+    else:
+        session.reply(f'I could not find any message talking about {topic}.')
 
 
 find_topic_state.set_body(find_topic_body)

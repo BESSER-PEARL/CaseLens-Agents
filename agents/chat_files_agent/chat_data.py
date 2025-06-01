@@ -74,9 +74,10 @@ class WhatsAppMessage(Message):
 
 class Chat:
 
-    def __init__(self, chat_type: str, messages: list[Message] = None, owner: User = None):
+    def __init__(self, name: str, chat_type: str, messages: list[Message] = None, owner: User = None):
         if messages is None:
             messages = []
+        self.name: str = name
         self.messages: list[Message] = messages
         self.owner: User = owner
         self.users: set[User] = set()
@@ -106,6 +107,7 @@ class Chat:
     def to_json(self):
         return {
             # TODO: Include message index???
+            "name": self.name,
             "messages": [message.to_json() for message in self.messages],
             "owner": self.owner.name if self.owner else None,
             "users": [user.name for user in self.users],

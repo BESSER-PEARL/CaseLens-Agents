@@ -84,3 +84,32 @@ def update_json_file(filepath: str, new_entries: list[dict]) -> None:
     # Write updated data back to the file
     with open(filepath, 'w', encoding='utf-8') as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
+
+
+def remove_entries_by_attribute(file_path: str, attribute_name: str, attribute_value: str) -> None:
+    """
+    Removes all entries from a JSON file (containing a list of dicts)
+    where a particular attribute has a specified value.
+
+    Args:
+        file_path (str): Path to the JSON file.
+        attribute_name (str): The name of the attribute to match in the json entries
+        attribute_value (str): The value of the attribute.
+    """
+    try:
+        with open(file_path, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+
+        if not isinstance(data, list):
+            raise ValueError("JSON file must contain a top-level list.")
+
+        filtered_data = [entry for entry in data if entry.get(attribute_name) != attribute_value]
+
+        with open(file_path, 'w', encoding='utf-8') as f:
+            json.dump(filtered_data, f, indent=4, ensure_ascii=False)
+    except FileNotFoundError:
+        print(f"File not found: {file_path}")
+    except json.JSONDecodeError:
+        print(f"Invalid JSON format in file: {file_path}")
+    except Exception as e:
+        print(f"An error occurred: {e}")

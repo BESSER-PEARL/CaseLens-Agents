@@ -15,6 +15,7 @@ from agents.chat_files_agent.json_loader import json_loader
 from agents.chat_files_agent.utils import generate_light_color, blankspace_to_underscore, html_text_processing
 from agents.chat_files_agent.whatsapp_loader import whatsapp_loader
 from agents.utils.chat import load_chat
+from agents.utils.json_utils import remove_entries_by_attribute
 from agents.utils.message_input import message_input
 from app.vars import *
 
@@ -54,6 +55,13 @@ def select_chat() -> (Chat, list[File]):
         st.info('There are no existing chats. Go to the Import tab to create a new one.')
         return None, None
     chat_file_name = st.radio(label='Select a chat', options=chat_files, index=None)
+    if chat_file_name and st.button('Delete selected chat'):
+        folder_path = st.secrets[CHATS_DIRECTORY]
+        file_path = os.path.join(folder_path, f'{chat_file_name}')
+        os.remove(file_path)
+        # Remove entries from notebook
+        remove_entries_by_attribute(st.secrets[CHAT_NOTEBOOK_FILE], CHAT_NAME, chat_file_name[:-5])  # Remove .json extension from file name
+        st.rerun()
     if chat_file_name:
         file_path = str(os.path.join(st.secrets[CHATS_DIRECTORY], chat_file_name))
         chat = json_loader(file_path)

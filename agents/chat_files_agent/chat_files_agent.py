@@ -6,6 +6,7 @@ import json
 import logging
 import os
 
+import tiktoken
 from besser.agent.core.agent import Agent
 from besser.agent.core.entity.entity import Entity
 from besser.agent.core.session import Session
@@ -14,8 +15,11 @@ from besser.agent.library.transition.events.base_events import ReceiveJSONEvent
 from besser.agent.nlp.intent_classifier.intent_classifier_configuration import LLMIntentClassifierConfiguration
 from besser.agent.nlp.intent_classifier.intent_classifier_prediction import IntentClassifierPrediction
 from besser.agent.nlp.llm.llm_openai_api import LLMOpenAI
+from transformers import AutoTokenizer
 
 from agents.chat_files_agent.json_loader import json_loader
+from agents.utils.composed_prompt import composed_prompt
+from agents.utils.llm_ollama import LLMOllama
 from app.vars import *
 
 # Configure the logging module (optional)
@@ -36,6 +40,16 @@ llm = LLMOpenAI(
     parameters={
         # 'max_completion_tokens': 1,
         # 'response_format': {"type": "json_object"}
+    }
+)
+
+gemma = LLMOllama(
+    agent=chat_files_agent,
+    name='gemma3:1b',
+    parameters={
+        "stream": False,
+        "options": {"num_ctx": 32768},
+        # "format": 'json',
     }
 )
 
@@ -81,7 +95,7 @@ fallback_state = chat_files_agent.new_state('fallback_state')
 
 
 def initialization_body(session: Session):
-    session.reply('Welcome to the chat files agent')
+    session.reply('Welcome to the chat files agent. Import a chat to start exploring it!')
 
 
 initialization_state.set_body(initialization_body)
@@ -112,12 +126,18 @@ store_chat_state.go_to(initial_state)
 
 
 def find_topic_body(session: Session):
+    if not session.get(CHAT):
+        session.reply('Please, load a chat first')
+        return
     predicted_intent: IntentClassifierPrediction = session.event.predicted_intent
     topic = predicted_intent.get_parameter('topic').value
+    if not topic:
+        session.reply("I think you want to find messages about some topic, but I couldn't understand which topic. Could you give me more details?")
+        return
     session.reply(f'I will try to find messages talking about "{topic}"...')
     answer = llm.predict(
         system_message='Your will receive a WhatsApp conversation in JSON format (it can be in any language, or combining some languages), and a topic. Your job is to identify those messages talking about that topic. Return ONLY a list containing the message indexes.',
-        message=f'Topic: {topic}\n{session.get(CHAT).to_prompt_format()}'
+        message=f'Topic: {topic}\n{session.get(CHAT).to_prompt_format()[0]}'
     )
     message_ids = ast.literal_eval(answer.strip())
     if message_ids:
@@ -132,12 +152,15 @@ find_topic_state.go_to(initial_state)
 
 
 def clean_chat_body(session: Session):
+    if not session.get(CHAT):
+        session.reply('Please, load a chat first')
+        return
     predicted_intent: IntentClassifierPrediction = session.event.predicted_intent
     topic = predicted_intent.get_parameter('topic').value
     session.reply(f'I will hide messages talking about "{topic}"...')
     answer = llm.predict(
         system_message='Your will receive a WhatsApp conversation in JSON format (it can be in any language, or combining some languages), and a topic. Your job is to identify those messages talking about that topic. Return ONLY a list containing the message indexes.',
-        message=f'Topic: {topic}\n{session.get(CHAT).to_prompt_format()}'
+        message=f'Topic: {topic}\n{session.get(CHAT).to_prompt_format()[0]}'
     )
     session.reply('Done!')
     session.reply(json.dumps({'message_ids': answer}))
@@ -148,11 +171,29 @@ clean_chat_state.go_to(initial_state)
 
 
 def fallback_body(session: Session):
+    if not session.get(CHAT):
+        session.reply('Please, load a chat first')
+        return
     message: str = session.event.message
-    answer = llm.predict(
-        system_message='Your will receive a WhatsApp conversation and a request. Please, answer properly to the request based on the content of the WhatsApp conversation.',
-        message=message + f'\n{session.get(CHAT).to_prompt_format()}'
+    #answer = llm.predict(
+    #    system_message='Your will receive a WhatsApp conversation and a request. Please, answer properly to the request based on the content of the WhatsApp conversation.',
+    #    message=message + f'\n{session.get(CHAT).to_prompt_format()}'
+    #)
+    if isinstance(llm, LLMOpenAI):
+        tokenizer = tiktoken.encoding_for_model(llm.name)
+    elif isinstance(llm, LLMOllama):
+        tokenizer = AutoTokenizer.from_pretrained(llm.name)
+    answer = composed_prompt(
+        session=session,
+        llm=llm,
+        chat=session.get(CHAT),
+        max_tokens=8000,
+        tokenizer=tokenizer,
+        chunk_prompt=f"Your will receive a WhatsApp conversation. Do the following task based on the conversation content: {message}",
+        final_prompt="You job is to combine the following LLM-generated answers. The original prompt was too big for the context length and was divided into chunks. Now, you must combine the answer the LLM gave on each chunk into a single one, keeping it coherent and avoiding duplicated content in your final answer.",
+        overlap=5
     )
+
     session.reply(answer)
 
 

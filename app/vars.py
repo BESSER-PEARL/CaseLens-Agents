@@ -30,15 +30,20 @@ ELASTICSEARCH = 'elasticsearch'
 INSTRUCTIONS = 'instructions'
 INSTRUCTIONS_CHECKBOXES = 'instructions_checkboxes'
 FILTERS_CHECKBOXES = 'filters_checkboxes'
-PROGRESS = 'progress'
+PROGRESS_DATA_LABELING = 'progress_data_labeling'
+PROGRESS_CHAT_FILES = 'progress_chat_files'
 INITIAL_TIME = 'initial_time'
 
 # Progress bar
+FINISHED = 'finished'
+TIME = 'time'
+# Data labeling progress bar
 UPDATED_DOCS = 'updated_docs'
 IGNORED_DOCS = 'ignored_docs'
 TOTAL_DOCS = 'total_docs'
-FINISHED = 'finished'
-TIME = 'time'
+# Chat files progress bar
+TOTAL_MESSAGES = 'total_messages'
+PROCESSED_MESSAGES = 'processed_messages'
 
 # Elasticsearch index fields
 DOCUMENT_RELEVANCE = 'DOCUMENT_RELEVANCE'

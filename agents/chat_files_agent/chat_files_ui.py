@@ -160,6 +160,7 @@ def chat_files():
         message_input(AGENT_CHAT_FILES)
         with chat_container:
             load_chat(AGENT_CHAT_FILES)
+            load_progress_bar()
 
 
 def display_chat(chat: Chat, attachments: list[File] = None):
@@ -295,3 +296,13 @@ def add_js_for_scrolling(chat: Chat):
             """
         with st.container(height=1, border=False):
             html(js)
+
+
+def load_progress_bar():
+    if PROGRESS_CHAT_FILES in st.session_state and not st.session_state[PROGRESS_CHAT_FILES][FINISHED]:
+        with st.chat_message(ASSISTANT):
+            total = st.session_state[PROGRESS_CHAT_FILES][TOTAL_MESSAGES]
+            processed = st.session_state[PROGRESS_CHAT_FILES][PROCESSED_MESSAGES]
+            st.text('Since the chat is too long, I am splitting it into smaller chunks. Then, I will combine the results into a single answer.')
+            st.progress(processed/total, text=f"{int(((processed) / total) * 100)}% messages analyzed ({processed}/{total})")
+

@@ -2,6 +2,8 @@ import re
 from abc import ABC, abstractmethod
 from datetime import datetime, date
 
+from agents.utils.token_count import token_count
+
 
 class User:
 
@@ -114,12 +116,23 @@ class Chat:
             "config": self.config.to_json()
         }
 
-    def to_prompt_format(self):
+    def to_prompt_format(self, start_message: int = 0, max_tokens: int = None, tokenizer=None):
         chat_str = ""
-        for message in self.messages:
+        i = start_message
+        total_tokens = 0
+        for message in self.messages[start_message:]:
+            i += 1
             if not message.hidden:
-                chat_str += f'{message.id} [{message.timestamp}] {message.user.name}: {message.content}\n'
-        return chat_str
+                message_str = f'{message.id} [{message.timestamp}] {message.user.name}: {message.content}\n'
+                if not (max_tokens and tokenizer):
+                    chat_str += message_str
+                else:
+                    total_tokens += token_count(tokenizer, message_str)
+                    if total_tokens <= max_tokens:
+                        chat_str += message_str
+                    else:
+                        break
+        return chat_str, i - 1
 
 
 class ChatConfig:

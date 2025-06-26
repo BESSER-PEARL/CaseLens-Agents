@@ -39,14 +39,19 @@ def on_message(agent_name: str):
         if payload.action == PayloadAction.AGENT_REPLY_STR.value:
             try:
                 content = json.loads(payload.message)
-                # Get data for progress bar
+                # Get data for progress bar in data labeling agent
                 if UPDATED_DOCS in content and IGNORED_DOCS in content and TOTAL_DOCS in content:
-                    if PROGRESS not in streamlit_session._session_state:
+                    if PROGRESS_DATA_LABELING not in streamlit_session._session_state:
                         content[INITIAL_TIME] = datetime.now()
                     else:
-                        content[INITIAL_TIME] = streamlit_session._session_state[PROGRESS][INITIAL_TIME]
-                    streamlit_session._session_state[PROGRESS] = content
+                        content[INITIAL_TIME] = streamlit_session._session_state[PROGRESS_DATA_LABELING][INITIAL_TIME]
+                    streamlit_session._session_state[PROGRESS_DATA_LABELING] = content
                     streamlit_session._handle_rerun_script_request()
+                # Get data for progress bar in chat files agent
+                if TOTAL_MESSAGES in content and PROCESSED_MESSAGES in content:
+                    streamlit_session._session_state[PROGRESS_CHAT_FILES] = content
+                    streamlit_session._handle_rerun_script_request()
+                # Add entry to chat files notebook
                 if CHAT_NAME in content and MESSAGE_IDS in content and TOPIC in content:
                     chat_name = content[CHAT_NAME]
                     message_ids = content[MESSAGE_IDS]

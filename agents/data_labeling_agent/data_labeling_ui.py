@@ -172,8 +172,8 @@ def request_history():
                 # st.session_state[AGENT_DATA_LABELING][HISTORY].clear()
                 request_json = request.to_json()
                 update_json_file(st.secrets[REQUEST_HISTORY_FILE], [request_json])
-                if PROGRESS in st.session_state[AGENT_DATA_LABELING]:
-                    del st.session_state[AGENT_DATA_LABELING][PROGRESS]
+                if PROGRESS_DATA_LABELING in st.session_state[AGENT_DATA_LABELING]:
+                    del st.session_state[AGENT_DATA_LABELING][PROGRESS_DATA_LABELING]
                 message = f'Request #{request.id} submitted'
                 message = Message(t=MessageType.STR, content=message, is_user=True, timestamp=datetime.now())
                 st.session_state[AGENT_DATA_LABELING][HISTORY].append(message)
@@ -211,8 +211,8 @@ def submit_request(request):
         request.timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         request_json = request.to_json()
         update_json_file(st.secrets[REQUEST_HISTORY_FILE], [request_json])
-        if PROGRESS in st.session_state[AGENT_DATA_LABELING]:
-            del st.session_state[AGENT_DATA_LABELING][PROGRESS]
+        if PROGRESS_DATA_LABELING in st.session_state[AGENT_DATA_LABELING]:
+            del st.session_state[AGENT_DATA_LABELING][PROGRESS_DATA_LABELING]
         message = f'Request #{request.id} submitted'
         message = Message(t=MessageType.STR, content=message, is_user=True, timestamp=datetime.now())
         st.session_state[AGENT_DATA_LABELING][HISTORY].append(message)
@@ -229,12 +229,12 @@ def submit_request(request):
 
 
 def load_progress_bar():
-    if PROGRESS in st.session_state:
+    if PROGRESS_DATA_LABELING in st.session_state:
         with st.container(border=True, height=200):
-            updated = st.session_state[PROGRESS][UPDATED_DOCS]
-            ignored = st.session_state[PROGRESS][IGNORED_DOCS]
-            total = st.session_state[PROGRESS][TOTAL_DOCS]
-            initial_time = st.session_state[PROGRESS][INITIAL_TIME]
+            updated = st.session_state[PROGRESS_DATA_LABELING][UPDATED_DOCS]
+            ignored = st.session_state[PROGRESS_DATA_LABELING][IGNORED_DOCS]
+            total = st.session_state[PROGRESS_DATA_LABELING][TOTAL_DOCS]
+            initial_time = st.session_state[PROGRESS_DATA_LABELING][INITIAL_TIME]
 
             time = datetime.now() - initial_time
             total_seconds = int(time.total_seconds())
@@ -258,9 +258,9 @@ def load_progress_bar():
             if eta_total_seconds > 0:
                 time_message += f' | ETA: {eta_hours:02}:{eta_minutes:02}:{eta_seconds:02}'
             st.text(time_message)
-        if st.session_state[PROGRESS][FINISHED]:
-            st.session_state[PROGRESS][FINISHED] = False  # To avoid overwriting multiple times
-            update_entry_by_id(st.secrets[REQUEST_HISTORY_FILE], st.session_state[PROGRESS][REQUEST_ID], {UPDATED_DOCS: updated, IGNORED_DOCS: ignored, TIME: time_message})
+        if st.session_state[PROGRESS_DATA_LABELING][FINISHED]:
+            st.session_state[PROGRESS_DATA_LABELING][FINISHED] = False  # To avoid overwriting multiple times
+            update_entry_by_id(st.secrets[REQUEST_HISTORY_FILE], st.session_state[PROGRESS_DATA_LABELING][REQUEST_ID], {UPDATED_DOCS: updated, IGNORED_DOCS: ignored, TIME: time_message})
 
 
 def data_labeling():

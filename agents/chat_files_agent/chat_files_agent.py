@@ -81,6 +81,11 @@ clean_chat_intent = chat_files_agent.new_intent(
 )
 clean_chat_intent.parameter('topic', 'TOPIC', topic_entity)
 
+fallback_intent = chat_files_agent.new_intent(
+    name='fallback_intent',
+    description='Any other request that is not linked to the other intents'
+)
+
 # STATES
 
 initialization_state = chat_files_agent.new_state('initialization_state', initial=True)
@@ -107,10 +112,11 @@ def initial_body(session: Session):
 
 
 initial_state.set_body(initial_body)
+initial_state.when_event(ReceiveJSONEvent()).go_to(store_chat_state)  # TODO: We can add condition to check json content
 initial_state.when_intent_matched(find_topic_intent).go_to(find_topic_state)
 # initial_state.when_intent_matched(clean_chat_intent).go_to(find_topic_state)  # TODO: IMPLEMENT THIS
-initial_state.when_event(ReceiveJSONEvent()).go_to(store_chat_state)  # TODO: We can add condition to check json content
-initial_state.when_no_intent_matched().go_to(fallback_state)
+initial_state.when_intent_matched(fallback_intent).go_to(fallback_state)
+# initial_state.when_no_intent_matched().go_to(fallback_state)
 
 
 def store_chat_body(session: Session):

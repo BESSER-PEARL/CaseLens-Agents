@@ -11,11 +11,11 @@ from besser.agent.core.session import Session
 from besser.agent.exceptions.logger import logger
 from besser.agent.library.transition.events.base_events import ReceiveJSONEvent, ReceiveTextEvent
 from besser.agent.nlp.intent_classifier.intent_classifier_configuration import LLMIntentClassifierConfiguration
-from besser.agent.nlp.llm.llm_openai_api import LLMOpenAI
 from elasticsearch import Elasticsearch
 
 from agents.elasticsearch.elasticsearch_query import build_query, get_num_docs, update_document_relevance_query, \
     append_document_label_query, scroll_docs
+from agents.utils.llm_ollama import LLMOllama, OLLAMA_MODEL
 from app.vars import *
 
 # Configure the logging module (optional)
@@ -24,15 +24,16 @@ logger.setLevel(logging.INFO)
 # Create the agent
 data_labeling_agent = Agent('data_labeling_agent')
 # Load agent properties stored in a dedicated file
-data_labeling_agent.load_properties('agents/config.ini')
+data_labeling_agent.load_properties('data/config.ini')
 # Define the platform your agent will use
 websocket_platform = data_labeling_agent.use_websocket_platform(use_ui=False)
 
+llm_name = data_labeling_agent.get_property(OLLAMA_MODEL)
 
 # Create the LLM
-llm = LLMOpenAI(
+llm = LLMOllama(
     agent=data_labeling_agent,
-    name='gpt-4o-mini',
+    name=llm_name,
     parameters={
         # 'max_completion_tokens': 1,
         # 'response_format': {"type": "json_object"}
@@ -40,13 +41,14 @@ llm = LLMOpenAI(
 )
 
 llm_ic_config = LLMIntentClassifierConfiguration(
-    llm_name='gpt-4o-mini',
+    llm_name=llm_name,
     parameters={},
     use_intent_descriptions=True,
     use_training_sentences=False,
     use_entity_descriptions=True,
     use_entity_synonyms=False
 )
+data_labeling_agent.set_default_ic_config(llm_ic_config)
 
 # Other example LLM
 
@@ -63,7 +65,7 @@ no_intent = data_labeling_agent.new_intent('no_intent', ['no'])
 # STATES
 
 initialization_state = data_labeling_agent.new_state('initialization_state', initial=True)
-initial_state = data_labeling_agent.new_state('initial_state', ic_config=llm_ic_config)
+initial_state = data_labeling_agent.new_state('initial_state')
 build_query_state = data_labeling_agent.new_state('build_query_state')
 run_query_state = data_labeling_agent.new_state('run_query_state')
 fallback_state = data_labeling_agent.new_state('fallback_state')

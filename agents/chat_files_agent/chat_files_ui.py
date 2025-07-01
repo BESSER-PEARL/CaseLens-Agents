@@ -102,8 +102,8 @@ def config_chat(chat: Chat):
 def notebook(chat: Chat):
     col1, col2 = st.columns(2)
     col1.subheader('Notebook')
-    if 'message_ids' in st.session_state:
-        for message_id in st.session_state['message_ids']:
+    if MESSAGE_IDS in st.session_state:
+        for message_id in st.session_state[MESSAGE_IDS]:
             if st.button(f'Message {message_id}', key=f'message_id_{message_id}'):
                 chat.config.selected_message = message_id
 

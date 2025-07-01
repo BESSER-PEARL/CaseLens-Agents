@@ -22,8 +22,11 @@ except ImportError:
                    "requirements/requirements-llm.txt file")
 
 
+OLLAMA_MODEL = Property(SECTION_NLP, 'nlp.ollama.model', str, None)
 OLLAMA_HOST = Property(SECTION_NLP, 'nlp.ollama.host', str, 'localhost')
 OLLAMA_PORT = Property(SECTION_NLP, 'nlp.ollama.port', int, 11434)
+OLLAMA_MAX_TOKENS = Property(SECTION_NLP, 'nlp.ollama.max_tokens', int, 3000)
+HF_TOKENIZER = Property(SECTION_NLP, 'nlp.hf.tokenizer', int, None)
 
 
 class LLMOllama(LLM):

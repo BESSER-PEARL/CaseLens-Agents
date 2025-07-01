@@ -73,8 +73,8 @@ def scroll_docs(session: Session, es_client, index_name, query, request, llm: LL
         # print(f'Total scroll size: {len(response["hits"]["hits"])}')
         for doc in response["hits"]["hits"]:
             doc_not_labeled = True
-            if (request[ACTION] == DOCUMENT_RELEVANCE and doc['_source'][DOCUMENT_RELEVANCE] == request[TARGET_VALUE]) \
-                    or (request[ACTION] == DOCUMENT_LABELS and request[TARGET_VALUE] in doc['_source'][DOCUMENT_LABELS]):
+            if (request[ACTION] == DOCUMENT_RELEVANCE and DOCUMENT_RELEVANCE in doc['_source'] and doc['_source'][DOCUMENT_RELEVANCE] == request[TARGET_VALUE]) \
+                    or (request[ACTION] == DOCUMENT_LABELS and DOCUMENT_LABELS in doc['_source'] and doc['_source'][DOCUMENT_LABELS] is not None and request[TARGET_VALUE] in doc['_source'][DOCUMENT_LABELS]):
                 # Doc already has the target score/label
                 doc_not_labeled = False
             if doc_not_labeled:

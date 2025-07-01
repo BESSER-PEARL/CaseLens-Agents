@@ -7,6 +7,7 @@ import logging
 import os
 
 import tiktoken
+from besser.agent import nlp
 from besser.agent.core.agent import Agent
 from besser.agent.core.entity.entity import Entity
 from besser.agent.core.session import Session
@@ -15,11 +16,12 @@ from besser.agent.library.transition.events.base_events import ReceiveJSONEvent
 from besser.agent.nlp.intent_classifier.intent_classifier_configuration import LLMIntentClassifierConfiguration
 from besser.agent.nlp.intent_classifier.intent_classifier_prediction import IntentClassifierPrediction
 from besser.agent.nlp.llm.llm_openai_api import LLMOpenAI
+from huggingface_hub import login
 from transformers import AutoTokenizer
 
 from agents.chat_files_agent.json_loader import json_loader
-from agents.utils.composed_prompt import composed_prompt
-from agents.utils.llm_ollama import LLMOllama
+from agents.utils.composed_prompt import composed_prompt, extract_numbers
+from agents.utils.llm_ollama import LLMOllama, OLLAMA_MODEL, HF_TOKENIZER, OLLAMA_MAX_TOKENS
 from app.vars import *
 
 # Configure the logging module (optional)
@@ -28,39 +30,41 @@ logger.setLevel(logging.INFO)
 # Create the agent
 chat_files_agent = Agent('chat_files_agent')
 # Load agent properties stored in a dedicated file
-chat_files_agent.load_properties('agents/config.ini')
+chat_files_agent.load_properties('data/config.ini')
 # Define the platform your agent will use
 websocket_platform = chat_files_agent.use_websocket_platform(use_ui=False)
 
 
+llm_name = chat_files_agent.get_property(OLLAMA_MODEL)
+max_tokens = chat_files_agent.get_property(OLLAMA_MAX_TOKENS)
+
 # Create the LLM
-llm = LLMOpenAI(
+llm = LLMOllama(
     agent=chat_files_agent,
-    name='gpt-4o-mini',
+    name=llm_name,
     parameters={
         # 'max_completion_tokens': 1,
         # 'response_format': {"type": "json_object"}
     }
 )
 
-gemma = LLMOllama(
-    agent=chat_files_agent,
-    name='gemma3:1b',
-    parameters={
-        "stream": False,
-        "options": {"num_ctx": 32768},
-        # "format": 'json',
-    }
-)
+if isinstance(llm, LLMOpenAI):
+    tokenizer = tiktoken.encoding_for_model(llm.name)
+elif isinstance(llm, LLMOllama):
+    login(chat_files_agent.get_property(nlp.HF_API_KEY))
+    tokenizer = AutoTokenizer.from_pretrained(chat_files_agent.get_property(HF_TOKENIZER))
+else:
+    tokenizer = None
 
 llm_ic_config = LLMIntentClassifierConfiguration(
-    llm_name='gpt-4o-mini',
+    llm_name=llm_name,
     parameters={},
     use_intent_descriptions=True,
     use_training_sentences=False,
     use_entity_descriptions=True,
     use_entity_synonyms=False
 )
+chat_files_agent.set_default_ic_config(llm_ic_config)
 
 # Intents and entities
 
@@ -89,7 +93,7 @@ fallback_intent = chat_files_agent.new_intent(
 # STATES
 
 initialization_state = chat_files_agent.new_state('initialization_state', initial=True)
-initial_state = chat_files_agent.new_state('initial_state', ic_config=llm_ic_config)
+initial_state = chat_files_agent.new_state('initial_state')
 store_chat_state = chat_files_agent.new_state('store_chat_state')
 find_topic_state = chat_files_agent.new_state('find_topic_state')
 clean_chat_state = chat_files_agent.new_state('clean_chat_state')
@@ -121,7 +125,7 @@ initial_state.when_intent_matched(fallback_intent).go_to(fallback_state)
 
 def store_chat_body(session: Session):
     chat_file = json.loads(session.event.message)[CHAT]
-    file_path = str(os.path.join("agents/chat_files_agent/chats", chat_file))
+    file_path = str(os.path.join("data/chat_files_agent/chats", chat_file))
     chat = json_loader(file_path)
     session.set(CHAT, chat)
     session.reply(f"I received your chat file '{chat_file}' successfully")
@@ -141,11 +145,20 @@ def find_topic_body(session: Session):
         session.reply("I think you want to find messages about some topic, but I couldn't understand which topic. Could you give me more details?")
         return
     session.reply(f'I will try to find messages talking about "{topic}"...')
-    answer = llm.predict(
-        system_message='Your will receive a WhatsApp conversation in JSON format (it can be in any language, or combining some languages), and a topic. Your job is to identify those messages talking about that topic. Return ONLY a list containing the message indexes.',
-        message=f'Topic: {topic}\n{session.get(CHAT).to_prompt_format()[0]}'
+    answers = composed_prompt(
+        session=session,
+        llm=llm,
+        chat=session.get(CHAT),
+        max_tokens=max_tokens,
+        tokenizer=tokenizer,
+        chunk_prompt=f'Your will receive a WhatsApp conversation (it can be in any language, or combining some languages). Your job is to identify those messages talking about "{topic}". Return ONLY a list of integers containing the message indexes (The numbers preceding the messages indicate their indexes, so use that numbers in your answer)',
+        final_prompt=None,
+        overlap=0
     )
-    message_ids = ast.literal_eval(answer.strip())
+    message_ids = []
+    for answer in answers:
+        message_ids.extend(extract_numbers(answer))
+    message_ids = list(set(message_ids))  # Remove duplicates
     if message_ids:
         session.reply(json.dumps({CHAT_NAME: session.get(CHAT).name, TOPIC: topic, MESSAGE_IDS: message_ids}))
         session.reply('Done! Go to the notebook to see the messages I identified.')
@@ -169,7 +182,7 @@ def clean_chat_body(session: Session):
         message=f'Topic: {topic}\n{session.get(CHAT).to_prompt_format()[0]}'
     )
     session.reply('Done!')
-    session.reply(json.dumps({'message_ids': answer}))
+    session.reply(json.dumps({MESSAGE_IDS: answer}))
 
 
 clean_chat_state.set_body(clean_chat_body)
@@ -181,25 +194,16 @@ def fallback_body(session: Session):
         session.reply('Please, load a chat first')
         return
     message: str = session.event.message
-    #answer = llm.predict(
-    #    system_message='Your will receive a WhatsApp conversation and a request. Please, answer properly to the request based on the content of the WhatsApp conversation.',
-    #    message=message + f'\n{session.get(CHAT).to_prompt_format()}'
-    #)
-    if isinstance(llm, LLMOpenAI):
-        tokenizer = tiktoken.encoding_for_model(llm.name)
-    elif isinstance(llm, LLMOllama):
-        tokenizer = AutoTokenizer.from_pretrained(llm.name)
     answer = composed_prompt(
         session=session,
         llm=llm,
         chat=session.get(CHAT),
-        max_tokens=8000,
+        max_tokens=max_tokens,
         tokenizer=tokenizer,
-        chunk_prompt=f"Your will receive a WhatsApp conversation. Do the following task based on the conversation content: {message}",
+        chunk_prompt=f"Your will receive a WhatsApp conversation (it can be in any language, or combining some languages). Do the following task based on the conversation content: {message}",
         final_prompt="You job is to combine the following LLM-generated answers. The original prompt was too big for the context length and was divided into chunks. Now, you must combine the answer the LLM gave on each chunk into a single one, keeping it coherent and avoiding duplicated content in your final answer.",
-        overlap=5
+        overlap=3
     )
-
     session.reply(answer)
 
 

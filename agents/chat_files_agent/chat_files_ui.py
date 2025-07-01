@@ -50,6 +50,7 @@ def import_chat():
 
 def select_chat() -> (Chat, list[File]):
     chat, attachments = None, None
+    os.makedirs(st.secrets[CHATS_DIRECTORY], exist_ok=True)
     chat_files = os.listdir(st.secrets[CHATS_DIRECTORY])
     if not chat_files:
         st.info('There are no existing chats. Go to the Import tab to create a new one.')

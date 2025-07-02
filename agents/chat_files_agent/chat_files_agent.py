@@ -20,7 +20,7 @@ from huggingface_hub import login
 from transformers import AutoTokenizer
 
 from agents.chat_files_agent.json_loader import json_loader
-from agents.utils.composed_prompt import composed_prompt, extract_numbers
+from agents.utils.composed_prompt import composed_prompt, extract_numbers, remove_duplicates
 from agents.utils.llm_ollama import LLMOllama, OLLAMA_MODEL, HF_TOKENIZER, OLLAMA_MAX_TOKENS
 from app.vars import *
 
@@ -150,7 +150,7 @@ def find_topic_body(session: Session):
         session=session,
         llm=llm,
         chat=session.get(CHAT),
-        max_tokens=max_tokens,
+        max_tokens=3000,
         tokenizer=tokenizer,
         chunk_prompt=f'Your will receive a WhatsApp conversation (it can be in any language, or combining some languages). Your job is to identify those messages talking about "{topic}". Return ONLY a list of integers containing the message indexes (The numbers preceding the messages indicate their indexes, so use that numbers in your answer)',
         final_prompt=None,
@@ -159,7 +159,7 @@ def find_topic_body(session: Session):
     message_ids = []
     for answer in answers:
         message_ids.extend(extract_numbers(answer))
-    message_ids = list(set(message_ids))  # Remove duplicates
+    message_ids = remove_duplicates(message_ids)
     if message_ids:
         session.reply(json.dumps({CHAT_NAME: session.get(CHAT).name, TOPIC: topic, MESSAGE_IDS: message_ids}))
         session.reply('Done! Go to the notebook to see the messages I identified.')
@@ -202,7 +202,7 @@ def fallback_body(session: Session):
         max_tokens=max_tokens,
         tokenizer=tokenizer,
         chunk_prompt=f"Your will receive a WhatsApp conversation (it can be in any language, or combining some languages). Do the following task based on the conversation content: {message}",
-        final_prompt="You job is to combine the following LLM-generated answers. The original prompt was too big for the context length and was divided into chunks. Now, you must combine the answer the LLM gave on each chunk into a single one, keeping it coherent and avoiding duplicated content in your final answer.",
+        final_prompt="You job is to combine the following LLM-generated answers. The original prompt was too big for the context length and was divided into chunks. Now, you must combine the answer the LLM gave on each chunk into a single one, keeping it coherent and avoiding duplicated content in your final answer. Don't mention the chunk partitions in your answer.",
         overlap=3
     )
     session.reply(answer)

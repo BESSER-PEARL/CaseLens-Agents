@@ -48,3 +48,13 @@ def composed_prompt(session: Session, llm: LLM, chat: Chat, max_tokens: int, tok
 
 def extract_numbers(s: str) -> list[int]:
     return [int(num) for num in re.findall(r'\d+', s)]
+
+
+def remove_duplicates(lst):
+    seen = set()
+    result = []
+    for num in lst:
+        if num not in seen:
+            seen.add(num)
+            result.append(num)
+    return result

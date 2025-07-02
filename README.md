@@ -55,8 +55,8 @@ The [data](data) volume contains the following:
   - `nlp.ollama.port = 11434` Port of the Ollama LLM
   - `nlp.ollama.max_tokens = 8000` Maximum number of input tokens for the LLM 
   - `nlp.ollama.model = gemma3:12b` Name of the Ollama LLM ([full list here](https://ollama.com/library))
-  - `nlp.hf.tokenizer = google/gemma-2-2b-it` Name of the tokenizer to use (should be the same family of the LLM. [Full list here]([full list here](https://huggingface.co/models)))
-  - `nlp.hf.api_key = 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` HuggingFace API Key. Some tokenizers may need authentication and therefore it is necessary to provide this key.
+  - `nlp.hf.tokenizer = google/gemma-2-2b-it` Name of the tokenizer to use (should be the same family of the LLM. ([full list here](https://huggingface.co/models)))
+  - `nlp.hf.api_key = YOUR-API-KEY` HuggingFace API Key. Some tokenizers may need authentication and therefore it is necessary to provide this key.
   - `elasticsearch.host = localhost` Host address of the elasticsearch database
   - `elasticsearch.port = 19200` Port of the elasticsearch database
   - `elasticsearch.index = castor-test-enron` Name of the elastiscearch index

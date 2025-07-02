@@ -1,0 +1,9 @@
+version: '3.8'
+
+services:
+  app:
+    image: besser-agents
+    network_mode: "host"
+    volumes:
+      - ./data:/app/data
+      - ./.streamlit:/app/.streamlit

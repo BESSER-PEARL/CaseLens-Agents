@@ -19,6 +19,8 @@ pip install -r requirements.txt
 python run.py
 ```
 
+You can access the application in `http://localhost:8501`
+
 ## Deploy with Docker
 
 ### 1. Build Docker image
@@ -36,6 +38,9 @@ This command uses the file [docker-compose.yml](docker-compose.yml)
 ```shell
 docker-compose up -d
 ```
+
+You can access the application in `http://localhost:8501`
+
 ### Volumes
 
 In Docker, a volume is a persistent storage mechanism used to store and share data between containers and the host system,

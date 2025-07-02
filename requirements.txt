@@ -4,5 +4,3 @@ streamlit-local-storage==0.0.25
 streamlit-screen-stats==0.0.82
 elasticsearch==8.11.0 # CASTOR's Version
 ollama==0.5.1
-tiktoken==0.9.0
-transformers==4.53.0

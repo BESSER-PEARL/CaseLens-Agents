@@ -51,7 +51,8 @@ llm = LLMOllama(
 if isinstance(llm, LLMOpenAI):
     tokenizer = tiktoken.encoding_for_model(llm.name)
 elif isinstance(llm, LLMOllama):
-    login(chat_files_agent.get_property(nlp.HF_API_KEY))
+    if chat_files_agent.get_property(nlp.HF_API_KEY):
+        login(chat_files_agent.get_property(nlp.HF_API_KEY))
     tokenizer = AutoTokenizer.from_pretrained(chat_files_agent.get_property(HF_TOKENIZER))
 else:
     tokenizer = None

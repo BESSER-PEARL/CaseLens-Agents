@@ -10,10 +10,11 @@ from agents.chat_files_agent.chat_files_agent import chat_files_agent
 from agents.chat_files_agent.chat_files_ui import chat_files
 from agents.data_labeling_agent.data_labeling_agent import data_labeling_agent
 from agents.data_labeling_agent.data_labeling_ui import data_labeling
+from app.home import home
 from app.initialization import initialize
 from app.settings import settings
 from app.sidebar import sidebar_menu
-from app.vars import DATA_LABELING, CHAT_FILES, SETTINGS
+from app.vars import *
 
 st.set_page_config(layout="wide")
 
@@ -34,6 +35,8 @@ if __name__ == "__main__":
         initialize()
         with st.sidebar:
             page = sidebar_menu()
+        if page == HOME:
+            home()
         if page == DATA_LABELING:
             data_labeling()
         elif page == CHAT_FILES:

@@ -11,7 +11,7 @@ def sidebar_menu():
             sac.MenuItem(CHAT_FILES, icon='wechat'),
             sac.MenuItem(DASHBOARD, icon='bar-chart-fill'),
         ]),
-        sac.MenuItem(SETTINGS, icon='gear-fill'),
+        #sac.MenuItem(SETTINGS, icon='gear-fill'),
     ], open_all=True)
     st.session_state[CURRENT_PAGE] = page
     return page

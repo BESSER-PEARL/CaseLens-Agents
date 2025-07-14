@@ -88,12 +88,12 @@ def select_chat() -> (Chat, list[File]):
 
 def config_chat(chat: Chat):
     # TODO: ADD BUTTON TO UPDATE JSON FILE
+    chat.config.show_timestamps = st.toggle(label="Show timestamps", value=True)
     chat.config.view_attachments = st.toggle(label="View attachments", value=False)
     chat.config.right_aligned = st.toggle(label="Right-aligned messages", value=False)
-    chat.config.show_timestamps = st.toggle(label="Show timestamps", value=True)
-    chat.config.page_size = st.number_input("Page size", value=100, min_value=1)
+    chat.owner = st.selectbox(label="Select a user to align to the right", options=chat.users, index=None, disabled=not chat.config.right_aligned, format_func=lambda u: u.name)
+    chat.config.page_size = st.number_input("Number of messages per page", value=100, min_value=1)
     chat.config.container_height = st.slider(label="Chat container height (px)", min_value=200, max_value=2000, value=650)
-    chat.owner = st.selectbox(label="Who is the user?", options=chat.users, index=None, format_func=lambda u: u.name)
     chat.config.selected_message = st.number_input(label='[Test feature] Go to message', value=None, min_value=1, max_value=chat.num_messages())
     chat.config.selected_date = st.date_input(label='[Test feature] Go to date', value=None)
     # todo: show/hide hidden messages

@@ -101,16 +101,11 @@ def config_chat(chat: Chat):
 
 
 def notebook(chat: Chat):
-    col1, col2 = st.columns(2)
-    col1.subheader('Notebook')
-    if MESSAGE_IDS in st.session_state:
-        for message_id in st.session_state[MESSAGE_IDS]:
-            if st.button(f'Message {message_id}', key=f'message_id_{message_id}'):
-                chat.config.selected_message = message_id
-
+    # st.subheader('Notebook')
+    find_topic_tab, hide_topic_tab = st.tabs(['Found topics', 'Hidden messages'])
     with open(st.secrets[CHAT_NOTEBOOK_FILE], "r", encoding='utf-8') as file:
         file_name = os.path.basename(st.secrets[CHAT_NOTEBOOK_FILE])
-        col2.download_button(
+        st.download_button(
             label=f"Download {file_name}",
             data=file,
             file_name=file_name,
@@ -120,16 +115,20 @@ def notebook(chat: Chat):
     with open(st.secrets[CHAT_NOTEBOOK_FILE], "r", encoding='utf-8') as file:
         notebook = json.load(file)
     # TODO: Currently, only topic entries
-    notebook_conteiner = col1.container(height=400, border=True)
-    messages_conteiner = col2.container(height=400, border=True)
-    topic_entries = [entry for entry in notebook if (entry[ENTRY_TYPE] == 'topic' and entry[CHAT_NAME] == st.session_state[AGENT_CHAT_FILES][CHAT_NAME])]
-    selected_topic_entry = notebook_conteiner.radio(label=f'Select a topic', options=topic_entries, format_func=lambda entry: entry[TOPIC])
-    if selected_topic_entry:
-        messages_conteiner.text(f'Messages about "{selected_topic_entry[TOPIC]}"')
-        messages_conteiner.text(f'Created at: "{selected_topic_entry[TIMESTAMP]}"')
-        for message_id in selected_topic_entry[MESSAGE_IDS]:
-            if messages_conteiner.button(label=f'Message {message_id}', key=f'message_button_{message_id}'):
-                chat.config.selected_message = message_id
+    with find_topic_tab:
+        col1, col2 = st.columns(2)
+        notebook_conteiner = col1.container(height=400, border=True)
+        messages_conteiner = col2.container(height=400, border=True)
+        topic_entries = [entry for entry in notebook if (entry[ENTRY_TYPE] == FIND_TOPIC and entry[CHAT_NAME] == st.session_state[AGENT_CHAT_FILES][CHAT_NAME])]
+        selected_topic_entry = notebook_conteiner.radio(label=f'Select a topic', options=topic_entries, format_func=lambda entry: entry[TOPIC])
+        if selected_topic_entry:
+            messages_conteiner.text(f'Messages about "{selected_topic_entry[TOPIC]}"')
+            messages_conteiner.text(f'Created at: "{selected_topic_entry[TIMESTAMP]}"')
+            for message_id in selected_topic_entry[MESSAGE_IDS]:
+                if messages_conteiner.button(label=f'Message {message_id}', key=f'message_button_{message_id}'):
+                    chat.config.selected_message = message_id
+    with hide_topic_tab:
+        pass
 
 
 def chat_files():

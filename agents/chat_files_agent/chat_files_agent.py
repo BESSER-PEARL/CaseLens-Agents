@@ -82,7 +82,7 @@ find_topic_intent.parameter('topic', 'TOPIC', topic_entity)
 
 clean_chat_intent = chat_files_agent.new_intent(
     name='clean_chat_intent',
-    description='The user wants to clean a WhatsApp conversation (i.e., remove messages that are irrelevant for him/her investigation).'
+    description='The user wants to clean a WhatsApp conversation (i.e., remove messages that are irrelevant for him/her investigation). The target topic or message is provided in the user query explicitly.'
 )
 clean_chat_intent.parameter('topic', 'TOPIC', topic_entity)
 
@@ -152,7 +152,7 @@ def find_topic_body(session: Session):
         chat=session.get(CHAT),
         max_tokens=3000,
         tokenizer=tokenizer,
-        chunk_prompt=f'Your will receive a WhatsApp conversation (it can be in any language, or combining some languages). Your job is to identify those messages talking about "{topic}". Return ONLY a list of integers containing the message indexes (The numbers preceding the messages indicate their indexes, so use that numbers in your answer)',
+        chunk_prompt=f'Your will receive a WhatsApp conversation (it can be in any language, or combining some languages). Your job is to identify those messages talking about "{topic}". This is the original user query: "{session.event.message}"\nReturn ONLY a list of integers containing the message indexes (The numbers preceding the messages indicate their indexes, so use that numbers in your answer)',
         final_prompt=None,
         overlap=0
     )
@@ -161,7 +161,7 @@ def find_topic_body(session: Session):
         message_ids.extend(extract_numbers(answer))
     message_ids = remove_duplicates(message_ids)
     if message_ids:
-        session.reply(json.dumps({CHAT_NAME: session.get(CHAT).name, TOPIC: topic, MESSAGE_IDS: message_ids}))
+        session.reply(json.dumps({TASK: FIND_TOPIC, CHAT_NAME: session.get(CHAT).name, TOPIC: topic, MESSAGE_IDS: message_ids}))
         session.reply('Done! Go to the notebook to see the messages I identified.')
     else:
         session.reply(f'I could not find any message talking about {topic}.')
@@ -177,13 +177,29 @@ def clean_chat_body(session: Session):
         return
     predicted_intent: IntentClassifierPrediction = session.event.predicted_intent
     topic = predicted_intent.get_parameter('topic').value
-    session.reply(f'I will hide messages talking about "{topic}"...')
-    answer = llm.predict(
-        system_message='Your will receive a WhatsApp conversation in JSON format (it can be in any language, or combining some languages), and a topic. Your job is to identify those messages talking about that topic. Return ONLY a list containing the message indexes.',
-        message=f'Topic: {topic}\n{session.get(CHAT).to_prompt_format()[0]}'
+    if not topic:
+        session.reply("I think you want to hide messages about some topic, but I couldn't understand which topic. Could you give me more details?")
+        return
+    session.reply(f'I will try to hide messages talking about "{topic}"...')
+    answers = composed_prompt(
+        session=session,
+        llm=llm,
+        chat=session.get(CHAT),
+        max_tokens=3000,
+        tokenizer=tokenizer,
+        chunk_prompt=f'Your will receive a WhatsApp conversation (it can be in any language, or combining some languages). Your job is to identify those messages talking about "{topic}". This is the original user query: "{session.event.message}"\nReturn ONLY a list of integers containing the message indexes (The numbers preceding the messages indicate their indexes, so use that numbers in your answer)',
+        final_prompt=None,
+        overlap=0
     )
-    session.reply('Done!')
-    session.reply(json.dumps({MESSAGE_IDS: answer}))
+    message_ids = []
+    for answer in answers:
+        message_ids.extend(extract_numbers(answer))
+    message_ids = remove_duplicates(message_ids)
+    if message_ids:
+        session.reply(json.dumps({TASK: HIDE_TOPIC, CHAT_NAME: session.get(CHAT).name, TOPIC: topic, MESSAGE_IDS: message_ids}))
+        session.reply(f"Done! I hid the messages talking about '{topic}'. You can undo this from the notebook.")
+    else:
+        session.reply(f'I could not find any message talking about {topic}.')
 
 
 clean_chat_state.set_body(clean_chat_body)

@@ -13,7 +13,7 @@ from besser.agent.core.message import MessageType, Message
 from besser.agent.exceptions.logger import logger
 from besser.agent.platforms.payload import PayloadAction, Payload
 
-from agents.chat_files_agent.notebook import add_notebook_topic_entry
+from agents.chat_files_agent.notebook import add_notebook_find_topic_entry, add_notebook_hide_topic_entry
 from app.session_management import get_streamlit_session
 from app.vars import *
 
@@ -52,12 +52,14 @@ def on_message(agent_name: str):
                     streamlit_session._session_state[PROGRESS_CHAT_FILES] = content
                     streamlit_session._handle_rerun_script_request()
                 # Add entry to chat files notebook
-                if CHAT_NAME in content and MESSAGE_IDS in content and TOPIC in content:
+                if TASK in content and CHAT_NAME in content and MESSAGE_IDS in content and TOPIC in content:
                     chat_name = content[CHAT_NAME]
                     message_ids = content[MESSAGE_IDS]
                     topic = content[TOPIC]
-                    # streamlit_session._session_state[MESSAGE_IDS] = message_ids
-                    add_notebook_topic_entry(chat_name=chat_name, topic=topic, message_ids=message_ids)
+                    if content[TASK] == FIND_TOPIC:
+                        add_notebook_find_topic_entry(chat_name=chat_name, topic=topic, message_ids=message_ids)
+                    elif content[TASK] == HIDE_TOPIC:
+                        add_notebook_hide_topic_entry(chat_name=chat_name, topic=topic, message_ids=message_ids)
                     streamlit_session._handle_rerun_script_request()
             except Exception:
                 content = payload.message

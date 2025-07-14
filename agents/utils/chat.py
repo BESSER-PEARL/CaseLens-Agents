@@ -56,7 +56,7 @@ def write_message(agent_name: str, message: Message, key_count: int, stream: boo
                 payload = Payload(action=PayloadAction.USER_MESSAGE, message=option)
                 ws = st.session_state[agent_name][WEBSOCKET]
                 ws.send(json.dumps(payload, cls=PayloadEncoder))
-                st.session_state[agent_name][key] = None
+                st.session_state[key] = None
 
             st.pills(label='Choose an option', options=message.content, selection_mode='single', on_change=send_option, key=key)
 
